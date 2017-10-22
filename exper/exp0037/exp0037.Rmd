@@ -22,14 +22,12 @@ ahmdalNum <- NA
 ahmdalAlg <- NA
 leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
 ```
-
-```{r LoadViewHiggs, cache = FALSE}
-mydata <- read.csv(file="../../data/higgs/training.csv", header=TRUE, sep=",")
-X <- as.matrix(mydata[,2:31])
-Y <- as.numeric(mydata[,33])
+```{r LoadViewp53, cache = FALSE}
+mydata <- read.csv(file="../../data/p53.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,1:(ncol(mydata)-1)])
+Y <- as.numeric(mydata[,ncol(mydata)])
 mydata <- NA
 gc()
-
 data_size_curr <- (object.size(X)+object.size(Y))/1000000
 ```
 
@@ -223,11 +221,11 @@ cat("training times: ", median_time, "\n")
 
 ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = cores_used, Time_Sec=median_time, Speed_Up=speed_up)
 amCal <- data.frame(Algorithm=as.factor(ahmdalAlg), Anum=ahmdalNum)
-save(ress1, file="exp0036.Rdata")
-save(amCal, file="exp0036Anum.Rdata")
+save(ress1, file="exp0037.Rdata")
+save(amCal, file="exp0037Anum.Rdata")
 flush.console()
 
-lab <- labs(title="Forest Algorithm Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: Higgs(250000x31)"))
+lab <- labs(title="Forest Algorithm Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: p53 (", nrow(X),"x",ncol(X),")"))
 print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg)
 ```
 
