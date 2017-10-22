@@ -22,11 +22,6 @@ ahmdalNum <- NA
 ahmdalAlg <- NA
 leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
 ```
-
-
-**********************************************************************
-#### Loading the images and labels
-**********************************************************************
 ```{r LoadView, cache = FALSE}
 #Size of the labels is 1 whereas everything else is 4
 #Open and position the image file
@@ -48,18 +43,34 @@ Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FAL
 
 close(image_block)
 close(label_block)
+
+image_block <- file("../../data/ubyte/t10k-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/t10k-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+Xt <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+Xt <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Yt <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+close(image_block)
+close(label_block)
+
 gc()
-data_size_curr <- (object.size(X)+object.size(Y))/1000000
+
+NameResults <- "MNIST"
+Results <- NULL
+Alg <- NULL
 ```
 
-Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
-
-**********************************************************************
-#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
-Speed-up: testing time reduction as number of cores grows.  
-**********************************************************************
-
-```{r speed_upRerf, cache = FALSE}
+```{r speed_up_MNIST, cache = FALSE}
 if(TRUE){
 #create impossible dataset
 initial_run_entry<-entry
@@ -70,12 +81,14 @@ library(rerf)
 		forest_hold <- NA
 		for (i in 1:nTimes){
 			gc()
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=6, store.oob=TRUE, stratify=TRUE, num.cores=48, seed=sample(1:100000,1))
 			ptm <- proc.time()
-			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=6, store.oob=TRUE, stratify=TRUE, num.cores=q, seed=sample(1:100000,1))
+predictions <- Predict(Xt, forest, num.cores = q)
+    error.rate <- mean(predictions != Yt)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 			forest[i] <- object.size(forest)
 		}
-		line_type[entry]<-"RerF"
+		line_type[entry]<-"MNIST"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
 		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
@@ -87,25 +100,27 @@ ptm_hold <- NA
 		forest_hold <- NA
 		for (i in 1:nTimes){
 			gc()
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=6, store.oob=TRUE, stratify=TRUE, num.cores=48)
 			ptm <- proc.time()
-			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=6, store.oob=TRUE, stratify=TRUE, num.cores=q)
+predictions <- Predict(Xt, forest, num.cores =q)
+    error.rate <- mean(predictions != Yt)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 			forest[i] <- object.size(forest)
 		}
-		line_type[entry]<-"RerF"
+		line_type[entry]<-"MNIST"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
 		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
-cat("rerf Ah calc") 
+cat("MNIST Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
 cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
 ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
-ahmdalAlg <- c(ahmdalAlg, "RerF")
+ahmdalAlg <- c(ahmdalAlg, "MNIST")
 cat("training times: ", median_time, "\n")
 }
 ```
@@ -140,13 +155,28 @@ ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[
 ahmdalAlg <- c(ahmdalAlg, "Ideal")
 cat("training times: ", median_time, "\n")
 ```
-```{r speed_upXG, cache = FALSE}
+
+**********************************************************************
+#### Loading Higgs
+**********************************************************************
+```{r LoadViewHiggs, cache = FALSE}
+mydata <- read.csv(file="../../data/higgs/training.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,2:31])
+Y <- as.numeric(mydata[,33])
+#mydata <- read.csv(file="../../data/higgs/test.csv", header=TRUE, sep=",")
+#Xt <- as.matrix(mydata[,2:32])
+#Yt <- as.numeric(mydata[,33])
+mydata <- NA
+gc()
+
+NameResults <- c(NameResults, "Higgs")
+Results <- NULL
+Alg <- NULL
+```
+
+```{r speed_Higgs, cache = FALSE}
 #create impossible dataset
-library(xgboost)
 initial_run_entry<-entry
-num_classes <- length(unique(Y))
-train <- apply(X,2,as.numeric)
-label <- Y-1
 if(run_su){
 		for (p in 2:ML){
 		q <- 2^(p-1)
@@ -154,11 +184,26 @@ if(run_su){
 		forest_hold <- NA
 		for (i in 1:nTimes){
 			gc()
+
+X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+
+			gc()
+			forest <- RerF(Xtr,Ytr, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=48,seed=sample(1:100000,1))
+            for( q in 1:num_trees){
+m <- which(is.na(forest$trees[[q]]$ClassProb))
+forest$trees[[q]]$ClassProb[m] <- .5
+            }
 			ptm <- proc.time()
-            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees, num_class=num_classes, nthread=q)
+predictions <- Predict(Xte, forest, num.cores =q)
+     error.rate <- mean(predictions != Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 		}
-		line_type[entry]<-"XGBoost"
+		line_type[entry]<-"Higgs"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
 		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
@@ -169,49 +214,76 @@ q <- 48
 		ptm_hold <- NA
 		forest_hold <- NA
 		for (i in 1:nTimes){
+X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+
 			gc()
+			forest <- RerF(Xtr,Ytr, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=48,seed=sample(1:100000,1))
+            for( q in 1:num_trees){
+m <- which(is.na(forest$trees[[q]]$ClassProb))
+forest$trees[[q]]$ClassProb[m] <- .5
+            }
 			ptm <- proc.time()
-            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=q)
+predictions <- Predict(Xte, forest, num.cores =q)
+     error.rate <- mean(predictions != Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
-	#		forest[i] <- object.size(forest)
 		}
-		line_type[entry]<-"XGBoost"
+		line_type[entry]<-"Higgs"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
 		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
-cat("xgboost Ah calc") 
+cat("Higgs Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
 cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
-ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
-ahmdalAlg <- c(ahmdalAlg, "XGBoost")
+ahmdalNum <- c(ahmdalNum, ((2-2/(median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
+ahmdalAlg <- c(ahmdalAlg, "Higgs")
 cat("training times: ", median_time, "\n")
 }
 ```
+```{r LoadViewp53, cache = FALSE}
+mydata <- read.csv(file="../../data/p53.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,1:(ncol(mydata)-1)])
+Y <- as.numeric(mydata[,ncol(mydata)])
+mydata <- NA
+gc()
 
-```{r speed_upRanger, cache = FALSE}
+NameResults <- c(NameResults, "p53")
+Results <- NULL
+Alg <- NULL
+```
+
+```{r speed_up_p53, cache = FALSE}
 #create impossible dataset
 initial_run_entry<-entry
-library(ranger)
-X <- cbind(X,Y)
-colnames(X) <- as.character(1:ncol(X))
 gc()
 		for (p in 2:ML){
 		q <- 2^(p-1)
 		ptm_hold <- NA
 		forest_hold <- NA
 		for (i in 1:nTimes){
+X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
 			gc()
+			forest <- RerF(Xtr,Ytr, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=48,seed=sample(1:100000,1))
 			ptm <- proc.time()
-            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+predictions <- Predict(Xte, forest, num.cores =q)
+     error.rate <- mean(predictions != Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
-			forest[i] <- object.size(forest)
 		}
-		line_type[entry]<-"Ranger"
+		line_type[entry]<-"p53"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
 		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
@@ -222,26 +294,33 @@ gc()
 		ptm_hold <- NA
 		forest_hold <- NA
 		for (i in 1:nTimes){
+X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
 			gc()
+			forest <- RerF(Xtr,Ytr, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=48,seed=sample(1:100000,1))
 			ptm <- proc.time()
-            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+predictions <- Predict(Xte, forest, num.cores =q)
+     error.rate <- mean(predictions != Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
-			forest[i] <- object.size(forest)
-		}
-		line_type[entry]<-"Ranger"
+					}
+		line_type[entry]<-"p53"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
 		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
-        cat("ranger Ah calc") 
+        cat("p53 Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
 cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
 ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
-ahmdalAlg <- c(ahmdalAlg, "Ranger")
+ahmdalAlg <- c(ahmdalAlg, "p53")
 cat("training times: ", median_time, "\n")
 ```
 
@@ -249,11 +328,11 @@ cat("training times: ", median_time, "\n")
 
 ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = cores_used, Time_Sec=median_time, Speed_Up=speed_up)
 amCal <- data.frame(Algorithm=as.factor(ahmdalAlg), Anum=ahmdalNum)
-save(ress1, file="exp0027.Rdata")
-save(amCal, file="exp0027Anum.Rdata")
+save(ress1, file="exp0039.Rdata")
+save(amCal, file="exp0039Anum.Rdata")
 flush.console()
 
-lab <- labs(title="Forest Algorithm Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: MNIST(60000x784)"))
+lab <- labs(title="Testing Time Strong Scaling", x="Number of Cores", y="Relative Performance")
 print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg)
 ```
 

@@ -75,10 +75,10 @@ ptm_hold <- NA
 cat("rerf Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
-cat("Amdahl's Number: ", 2-2/(median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1]), "\n")
+cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
-ahmdalNum <- c(ahmdalNum, (2-2/(median_time[initial_run_entry+3])/(median_time[initial_run_entry+4])))
+ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
 ahmdalAlg <- c(ahmdalAlg, "RerF")
 cat("training times: ", median_time, "\n")
 }
@@ -107,10 +107,10 @@ q<- 48
 cat("ideal Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
-cat("Amdahl's Number: ", 2-2/(median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1]), "\n")
+cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
-ahmdalNum <- c(ahmdalNum, (2-2/(median_time[initial_run_entry+3])/(median_time[initial_run_entry+4])))
+ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
 ahmdalAlg <- c(ahmdalAlg, "Ideal")
 cat("training times: ", median_time, "\n")
 ```
@@ -158,10 +158,10 @@ q <- 48
 cat("xgboost Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
-cat("Amdahl's Number: ", 2-2/(median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1]), "\n")
+cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
-ahmdalNum <- c(ahmdalNum, (2-2/(median_time[initial_run_entry+3])/(median_time[initial_run_entry+4])))
+ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
 ahmdalAlg <- c(ahmdalAlg, "XGBoost")
 cat("training times: ", median_time, "\n")
 }
@@ -211,10 +211,10 @@ gc()
         cat("ranger Ah calc") 
 currAh <- 0
 for(t in 1:(ML-1)){
-cat("Amdahl's Number: ", 2-2/(median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1]), "\n")
+cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
-ahmdalNum <- c(ahmdalNum, (2-2/(median_time[initial_run_entry+3])/(median_time[initial_run_entry+4])))
+ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
 ahmdalAlg <- c(ahmdalAlg, "Ranger")
 cat("training times: ", median_time, "\n")
 ```
