@@ -1,0 +1,280 @@
+---
+title: "Test speed of breadth vs depth, exp0001"
+author: "James Browne"
+date: "June 22, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+nTimes<-1
+#Required for below sections
+line_type <- NA
+median_time <- NA
+num_samples <- NA
+entry <- 1L
+core_num <- 2
+num_trees <- 100
+ptm_hold <- double(nTimes)
+initial <- 5000
+step <- 5000
+final <-6*step
+run_brfr <- TRUE
+run_dlrfr <- TRUE
+run_dbrfr <- TRUE
+run_dsrfr <- TRUE
+run_print <- TRUE
+```
+
+
+**********************************************************************
+#### Loading the images and labels for MNIST
+**********************************************************************
+```{r LoadView, cache = FALSE}
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+#X <- X[1:30000,]
+#Y <- Y[1:30000]
+close(image_block)
+close(label_block)
+gc()
+```
+**********************************************************************
+MNIST 
+**********************************************************************
+```{r brfr_MNIST, cache = FALSE}
+#create impossible dataset
+if(run_brfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('brfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Breadth First (MNIST)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+```{r dlrfr_MNIST, cache = FALSE}
+#create impossible dataset
+if(run_dlrfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('dlrfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Depth First Left (MNIST)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+```{r dbrfr_MNIST, cache = FALSE}
+#create impossible dataset
+if(run_dbrfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('dbrfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Depth First Big (MNIST)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+```{r dsrfr_MNIST, cache = FALSE}
+#create impossible dataset
+if(run_dsrfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('dsrfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Depth First Small (MNIST)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+
+**********************************************************************
+#### Loading Random Data
+**********************************************************************
+```{r LoadRandom, cache = FALSE}
+if(exists("X")){
+  rm(X,Y)
+  gc()
+}
+Xr <- as.matrix(replicate(784,rnorm(30000)))
+Yr <- as.numeric(sample(1:10, 30000, replace=TRUE))
+```
+**********************************************************************
+Random 
+**********************************************************************
+```{r brfr_Random, cache = FALSE}
+#create impossible dataset
+if(run_brfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('brfr.R')
+numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(Xr[1:numS,],Yr[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Breadth First (Random)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+
+```{r dlrfr_Random, cache = FALSE}
+#create impossible dataset
+if(run_dlrfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('dlrfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(Xr[1:numS,],Yr[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Depth First Left (Random)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+```{r dbrfr_Random, cache = FALSE}
+#create impossible dataset
+if(run_dbrfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('dbrfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(Xr[1:numS,],Yr[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Depth First Big (Random)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+
+```{r dsrfr_Random, cache = FALSE}
+#create impossible dataset
+if(run_dsrfr){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('dsrfr.R')
+ numS <-initial 
+    while(numS <= final){
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest5 <- rfr(Xr[1:numS,],Yr[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"Depth First Small (Random)"
+		median_time[entry]<- median(ptm_hold)
+        num_samples[entry] <- numS
+        entry<-entry+1L
+        numS <- numS + step
+	}
+}
+```
+**********************************************************************
+Print
+**********************************************************************
+```{r print, cache = FALSE}
+ress1 <- data.frame(Line_Type=as.factor(line_type), Time_Sec=median_time, Num_Samples=num_samples)
+save(ress1, file="0001results.Rdata")
+if(run_print){
+library(ggplot2)
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+lab <- labs(title="Breadth vs Depth Speed", x="Number of Samples", y="Training Time (s)")
+print(ggplot(ress1,aes(x=Num_Samples, y=Time_Sec, group=Line_Type, color=Line_Type))+geom_line()+lab +leg )
+}
+```

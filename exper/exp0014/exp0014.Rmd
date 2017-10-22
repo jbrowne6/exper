@@ -1,0 +1,252 @@
+---
+title: "Test speed-up and scale-up of R-Rerf Iteration 8"
+author: "James Browne"
+date: "May 16 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+library(ggplot2)
+library(reshape)
+ library(scales)
+library(plyr)
+library(randomForest)
+
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+
+
+nTimes <-20
+num_trees <- 100  
+median_time <- NA
+data <- data.frame()
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+close(image_block)
+close(label_block)
+Xr <- as.matrix(replicate(784,rnorm(60000)))
+	Yr <- as.numeric(sample(1:10, 60000, replace=TRUE))
+gc()
+
+NameResults <- "MNIST"
+Results <- NULL
+Alg <- NULL
+```
+
+Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
+
+**********************************************************************
+#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+```{r MNIST_RerF, cache = FALSE}
+#create impossible dataset
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+source('../../code/rfr_function.R')
+
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X,Y, trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=1)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+        Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RerF")
+```
+
+```{r MNIST_RerF_Row, cache = FALSE}
+#create impossible dataset
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+source('code/rfr_function.R')
+Xrf <- as.matrix(X, byrow=TRUE)
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(Xrf,Y, trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=1)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+        Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RerF(row)")
+```
+
+```{r MNIST_RerF_breadth, cache = FALSE}
+#create impossible dataset
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+source('../../code/brfr.R')
+
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X,Y, trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=1)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+        Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RerF(breadth)")
+```
+
+```{r MNIST_RandomForest, cache = FALSE}
+#create impossible dataset
+if(TRUE){
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+Yrf<-as.factor(as.character(Y))
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- randomForest(X,Yrf, ntree=num_trees)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RF")
+
+}
+```
+
+```{r MNIST_process, cache = FALSE}
+data <- rbind(data, Results)
+```
+
+**********************************************************************
+#### Loading Higgs
+**********************************************************************
+```{r LoadViewHiggs, cache = FALSE}
+mydata <- read.csv(file="../../data/higgs/training.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,2:32])
+Y <- as.numeric(mydata[,33])
+mydata <- NA
+gc()
+
+NameResults <- c(NameResults, "Higgs")
+Results <- NULL
+Alg <- NULL
+```
+
+**********************************************************************
+#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+```{r Higgs_RerF, cache = FALSE}
+#create impossible dataset
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+source('../../code/rfr_function.R')
+
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X,Y, trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=1)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+        
+        Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RerF")
+```
+
+```{r Higgs_RerF_Row, cache = FALSE}
+#create impossible dataset
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+source('code/rfr_function.R')
+
+		ptm_hold <- NA
+Xrf <- as.matrix(X, byrow=TRUE)
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(Xrf,Y, trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=1)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RerF(row)")
+```
+
+```{r Higgs_RerF_breadth, cache = FALSE}
+#create impossible dataset
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+source('../../code/brfr.R')
+
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X,Y, trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=1)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RerF(breadth)")
+```
+
+```{r Higgs_RandomForest, cache = FALSE}
+#create impossible dataset
+if(TRUE){
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+Yrf<-as.factor(as.character(Y))
+		ptm_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- randomForest(X,Yrf, ntree=num_trees)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg, "RF")
+}
+```
+
+```{r Higgs_process, cache = FALSE}
+data <- rbind(data, Results)
+```
+
+
+```{r print_test, cache = FALSE}
+ress1 <- cbind(NameResults,data)
+colnames(ress1) <- c("Dataset", Alg)
+
+#ress1<-data.frame(Dataset=as.factor(dataset), Time_Sec=median_time, Line_Type = as.factor(line_type))
+ress1 <- melt(ress1, id.vars='Dataset')
+save(ress1, file="speed.Rdata")
+
+print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity"))
+#print(ggplot(ress2,aes(x=Cores_Used, y=Scale_Up, group=Line_Type, color=Line_Type))+geom_line()+labs(title="R-RerF Scale-Up", x="Number of Cores", y="Scale-Up", subtitle=paste("Initial number of samples: ", baseS))+expand_limits(y=c(0,1))+leg)
+```

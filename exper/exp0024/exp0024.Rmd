@@ -1,0 +1,222 @@
+---
+title: "Test speed of breadth vs depth, exp0001"
+author: "James Browne"
+date: "June 22, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+library(ranger)
+library(ggplot2)
+library(reshape)
+ library(scales)
+library(plyr)
+
+source("../../code/rfr_function.R")
+nTimes <- 20
+numT <- 100
+core_num <- 1
+Results <- NULL
+Alg <- NULL
+NameResults <- NULL
+data <- data.frame()
+ptm_hold <- NA
+median_time <- NA
+entry <- 1
+MNIST_run <- TRUE
+Rand_run <- TRUE
+```
+
+
+**********************************************************************
+#### Loading the images and labels for MNIST
+**********************************************************************
+```{r LoadView, cache = FALSE}
+if(MNIST_run){
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+X <- cbind(X, as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1))
+
+colnames(X) <- as.character(1:ncol(X))
+#X <- X[1:30000,]
+#Y <- Y[1:30000]
+close(image_block)
+close(label_block)
+gc()
+
+
+NameResults <- c(NameResults, "MNIST")
+}
+```
+**********************************************************************
+MNIST 
+**********************************************************************
+```{r rangerM, cache = FALSE}
+if(MNIST_run){
+#create impossible dataset
+ 		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = numT, num.threads = core_num, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+#		line_type[entry]<-"Ranger_MNIST"
+		median_time[entry]<- median(ptm_hold)
+        entry<-entry+1L
+        Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg,"Ranger")
+}
+```
+
+```{r rangerM_Lite, cache = FALSE}
+if(MNIST_run){
+#create impossible dataset
+ 		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = numT, num.threads = core_num, classification=TRUE, save.memory=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+#		line_type[entry]<-"Ranger_MNIST"
+		median_time[entry]<- median(ptm_hold)
+        entry<-entry+1L
+        Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg,"Ranger-Lite")
+}
+```
+
+
+```{r rerfM, cache = FALSE}
+if(MNIST_run){
+#create impossible dataset
+  		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X[,1:(ncol(X)-1)],X[,ncol(X)], trees=numT, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+#		line_type[entry]<-"RerF_MNIST"
+		median_time[entry]<- median(ptm_hold)
+        entry<-entry+1L
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg,"RerF")
+}
+```
+
+```{r MNIST_process, cache = FALSE}
+data <- rbind(data, Results)
+```
+
+
+**********************************************************************
+#### Loading Higgs Data
+**********************************************************************
+```{r LoadRandom, cache = FALSE}
+if(Rand_run){
+  if(exists("X")){
+  rm(X, forest)
+  gc()
+}
+  mydata <- read.csv(file="../../data/higgs/training.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,2:32])
+Y <- as.numeric(mydata[,33])
+X <- cbind(X,Y)
+colnames(X) <- as.character(1:ncol(X))
+mydata <- NA
+gc()
+
+NameResults <- c(NameResults, "Higgs")
+Results <- NULL
+Alg <- NULL
+  
+}
+```
+
+**********************************************************************
+Random 
+**********************************************************************
+```{r rangerR, cache = FALSE}
+if(Rand_run){
+#create impossible dataset
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = numT, num.threads = core_num, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+#		line_type[entry]<-"Ranger_Higgs"
+		median_time[entry]<- median(ptm_hold)
+        entry<-entry+1L
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg,"Ranger")
+}
+```
+
+```{r rangerR_Lite, cache = FALSE}
+if(Rand_run){
+#create impossible dataset
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = numT, num.threads = core_num, classification=TRUE, save.memory=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+#		line_type[entry]<-"Ranger_Higgs"
+		median_time[entry]<- median(ptm_hold)
+        entry<-entry+1L
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg,"Ranger-Lite")
+}
+```
+
+```{r rerfR, cache = FALSE}
+if(Rand_run){
+#create impossible dataset
+  		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X[,1:(ncol(X)-1)],X[,ncol(X)], trees=numT, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=core_num)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+#		line_type[entry]<-"RerF_Higgs"
+		median_time[entry]<- median(ptm_hold)
+Results <- c(Results, median(ptm_hold))
+        Alg <- c(Alg,"RerF")
+        entry<-entry+1L
+}
+```
+        
+```{r Random_process, cache = FALSE}
+if(Rand_run){
+data <- rbind(data, Results)
+}
+```
+
+
+**********************************************************************
+Print
+**********************************************************************
+```{r print, cache = FALSE}
+ress1 <- cbind(NameResults,data)
+colnames(ress1) <- c("Dataset", Alg)
+
+ress1 <- melt(ress1, id.vars='Dataset')
+save(ress1, file="speed.Rdata")
+
+print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity") + labs(title="R-RerF Scale-Up", y="Time (s)"))
+```

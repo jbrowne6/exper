@@ -1,0 +1,134 @@
+---
+title: "Test accuracy of modified RerFs"
+author: "James Browne"
+date: "June 22, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+X <- as.matrix(iris[,1:4])
+Y <- as.numeric(iris[,5])
+numcores=2
+BagP = .3
+```
+Test each of the modified algorithms, the error rate should be the same
+
+**********************************************************************
+#### 10 runs iris breath first
+**********************************************************************
+```{r test-brfr, cache = FALSE}
+#prepare data
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+}
+source('~/dropbox/gitRepos/R-RerF/exper/exp0001/brfr.R')
+ptmtrain <- NA
+ptmtest <- NA
+error <- NA
+for (i in 1:10){
+ptm <- proc.time()
+forest<-rfr(X,Y, trees=100, bagging=BagP, replacement=TRUE, stratify = TRUE, MaxDepth="inf", COOB = TRUE, NumCores=numcores)
+
+ptmtrain[i]<- (proc.time() - ptm)[3]
+ptm <- proc.time()
+error[i] <- error_rate(X,Y,forest, NumCores=numcores)
+ptmtest[i]<- (proc.time() - ptm)[3]
+cat("|")
+}
+cat("iris training complete:\nTraining Time Summary\n")
+summary(ptmtrain)
+cat("iris error complete:\nError Summary:\n")
+summary(error)
+cat("Test Time Summary:\n")
+summary(ptmtest)
+```
+*********************************************************************
+#### 10 runs iris depth first left
+**********************************************************************
+```{r test-dlrfr, cache = FALSE}
+#prepare data
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+}
+source('~/dropbox/gitRepos/R-RerF/exper/exp0001/dlrfr.R')
+ptmtrain <- NA
+ptmtest <- NA
+error <- NA
+for (i in 1:10){
+ptm <- proc.time()
+forest<-rfr(X,Y, trees=100, bagging=BagP, replacement=TRUE, stratify = TRUE, MaxDepth="inf", COOB = TRUE, NumCores=numcores)
+
+ptmtrain[i]<- (proc.time() - ptm)[3]
+ptm <- proc.time()
+error[i] <- error_rate(X,Y,forest, NumCores=numcores)
+ptmtest[i]<- (proc.time() - ptm)[3]
+cat("|")
+}
+cat("iris training complete:\nTraining Time Summary\n")
+summary(ptmtrain)
+cat("iris error complete:\nError Summary:\n")
+summary(error)
+cat("Test Time Summary:\n")
+summary(ptmtest)
+```
+
+*********************************************************************
+#### 10 runs iris breath first big
+**********************************************************************
+```{r test-dbrfr, cache = FALSE}
+#prepare data
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+}
+source('~/dropbox/gitRepos/R-RerF/exper/exp0001/dbrfr.R')
+ptmtrain <- NA
+ptmtest <- NA
+error <- NA
+for (i in 1:10){
+ptm <- proc.time()
+forest<-rfr(X,Y, trees=100, bagging=BagP, replacement=TRUE, stratify = TRUE, MaxDepth="inf", COOB = TRUE, NumCores=numcores)
+
+ptmtrain[i]<- (proc.time() - ptm)[3]
+ptm <- proc.time()
+error[i] <- error_rate(X,Y,forest, NumCores=numcores)
+ptmtest[i]<- (proc.time() - ptm)[3]
+cat("|")
+}
+cat("iris training complete:\nTraining Time Summary\n")
+summary(ptmtrain)
+cat("iris error complete:\nError Summary:\n")
+summary(error)
+cat("Test Time Summary:\n")
+summary(ptmtest)
+```
+
+*********************************************************************
+#### 10 runs iris breath first small
+**********************************************************************
+```{r test-dsrfr, cache = FALSE}
+#prepare data
+if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+}
+source('~/dropbox/gitRepos/R-RerF/exper/exp0001/dsrfr.R')
+ptmtrain <- NA
+ptmtest <- NA
+error <- NA
+for (i in 1:10){
+ptm <- proc.time()
+forest<-rfr(X,Y, trees=100, bagging=BagP, replacement=TRUE, stratify = TRUE, MaxDepth="inf", COOB = TRUE, NumCores=numcores)
+
+ptmtrain[i]<- (proc.time() - ptm)[3]
+ptm <- proc.time()
+error[i] <- error_rate(X,Y,forest, NumCores=numcores)
+ptmtest[i]<- (proc.time() - ptm)[3]
+cat("|")
+}
+cat("iris training complete:\nTraining Time Summary\n")
+summary(ptmtrain)
+cat("iris error complete:\nError Summary:\n")
+summary(error)
+cat("Test Time Summary:\n")
+summary(ptmtest)
+```

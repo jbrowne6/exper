@@ -1,0 +1,30 @@
+---
+title: "Test speed-up and scale-up of R-Rerf against xg and ranger"
+author: "James Browne"
+date: "Oct 10 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+##source('rfr_function.R')
+library(ggplot2)
+nTimes <- 10
+run_su <- TRUE
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+```
+
+
+```{r speed_upRanger, cache = FALSE}
+#create impossible dataset
+```{r speed_up_printRanger, cache = FALSE}
+if(TRUE){
+load(file="speedSXG.Rdata")
+
+#print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity"))
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+
+print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity") + leg + labs(title="Algorithm Training Times", x="Dataset", y="Per Tree Training Time (s)", subtitle=paste("")))
+}
+```
+

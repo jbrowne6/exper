@@ -1,0 +1,49 @@
+---
+title: "Test speed-up and scale-up of R-Rerf Iteration 8"
+author: "James Browne"
+date: "May 16 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+##source('rfr_function.R')
+library(ggplot2)
+nTimes <- 10
+run_su <- TRUE
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+```
+
+```{r speed_up_printNew, cache = FALSE}
+if(run_su){
+    load(file="exp0026speedUpNew.Rdata")
+lab <- labs(title="New R-RerF Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: 168MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg +scale_y_continuous(trans = "log2", breaks = c(2,4,8,16,32,64,96)))
+
+gc()
+}
+```
+
+```{r speed_up_printRerf, cache = FALSE}
+if(run_su){
+load(file="exp0026speedUpRerf.Rdata")
+lab <- labs(title="Rcpp R-RerF Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: 168MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg +scale_y_continuous(trans = "log2", breaks = c(2,4,8,16,32,64,96)))
+
+gc()
+}
+```
+
+```{r speed_upRanger, cache = FALSE}
+#create impossible dataset
+```{r speed_up_printRanger, cache = FALSE}
+if(run_su){
+load(file="exp0026speedUpRerf.Rdata")
+
+lab <- labs(title="Ranger Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: 168 MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg +scale_y_continuous(trans = "log2", breaks = c(2,4,8,16,32,64,96)))
+
+gc()
+}
+```
+

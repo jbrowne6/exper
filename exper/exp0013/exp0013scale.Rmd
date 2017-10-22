@@ -1,0 +1,145 @@
+---
+title: "Test speed and accuracy of R-Rerf Iteration 13"
+author: "James Browne"
+date: "May 12, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+source('rfr_us.R')
+library(reshape)
+ library(ggplot2)
+ library(scales)
+library(plyr)
+maxTree <- 50#200
+numtrees <- maxTree
+maxD <- 7
+initialTree <- 5
+byVal <- 5
+```
+This iteration trains the forest using 2 cores.  This iteration reduces the space requirements to store the forest data structure and improved the testing speed.
+
+**********************************************************************
+#### 10 runs Easy set (2000x2), MinParent=6, trees=100, MaxDepth=0, bagging = .2, FUN=makeA, options=ncol(X)
+**********************************************************************
+```{r run-easy, cache = FALSE}
+#prepare data
+require(compiler)
+#################East 3 Cluster Data ##########
+X <- read.csv("../../data/easy_gen.csv", header = TRUE)
+ClassA <- X[,3]+1 #don't forget to start at 1 instead of 0.
+X<- scale(as.matrix(X[,1:2]))
+#################Iris Data#####################
+#X<- as.matrix(iris[,1:4])
+#ClassA <- as.numeric(iris[,5])
+###############################################
+rfrus <- cmpfun(rfrus)
+dist <- cmpfun(dist)
+forest <- rfrus(X,trees=numtrees)
+
+trees <- NULL
+
+data <- matrix(0,nrow=length(seq(initialTree, maxTree, byVal)), ncol=maxD-1)
+for(f in seq(initialTree, maxTree, byVal)){
+for(k in 2:maxD){
+dMat <- dist(X, forest[1:f], k)
+ClassU <- specN(dMat, 3)
+oe<-1-CheckKmeans(ClassA, ClassU)[1]
+data[((f-initialTree)/byVal)+1, k-1] <- round(oe,2)
+}
+  trees <- c(trees,f)
+}
+data <- data.frame(data)
+colnames(data)<- c(2:maxD)
+trees<-as.factor(trees)
+data <- cbind(trees,data)
+
+data.m <- melt(data)
+colnames(data.m)<-c("trees","depth", "value")
+
+ data.m <- ddply(data.m, .(depth), transform, rescale = rescale(value))
+ p <- ggplot(data.m, aes(depth, trees)) + 
+         geom_tile(aes(fill = rescale), colour = "white") 
+ p + scale_fill_gradient(low = "white", high = "steelblue")+geom_text(aes(label=value))
+```
+```{r run-easy-2, cache = FALSE}
+#prepare data
+require(compiler)
+#################East 3 Cluster Data ##########
+X <- read.csv("../../data/easy_gen.csv", header = TRUE)
+ClassA <- X[,3]+1 #don't forget to start at 1 instead of 0.
+X<- as.matrix(X[,1:2])
+#################Iris Data#####################
+#X<- as.matrix(iris[,1:4])
+#ClassA <- as.numeric(iris[,5])
+###############################################
+rfrus <- cmpfun(rfrus)
+dist <- cmpfun(dist)
+forest <- rfrus(X,trees=numtrees)
+
+trees <- NULL
+
+data <- matrix(0,nrow=length(seq(initialTree, maxTree, byVal)), ncol=maxD-1)
+for(f in seq(initialTree, maxTree, byVal)){
+for(k in 2:maxD){
+dMat <- dist(X, forest[1:f], k)
+ClassU <- specN(scale(dMat), 3)
+oe<-1-CheckKmeans(ClassA, ClassU)[1]
+data[((f-initialTree)/byVal)+1, k-1] <- round(oe,2)
+}
+  trees <- c(trees,f)
+}
+data <- data.frame(data)
+colnames(data)<- c(2:maxD)
+trees<-as.factor(trees)
+data <- cbind(trees,data)
+
+data.m <- melt(data)
+colnames(data.m)<-c("trees","depth", "value")
+ data.m <- ddply(data.m, .(depth), transform, rescale = rescale(value))
+ p <- ggplot(data.m, aes(depth, trees)) + 
+         geom_tile(aes(fill = rescale), colour = "white") 
+ p + scale_fill_gradient(low = "white", high = "steelblue")+geom_text(aes(label=value))
+```
+
+```{r run-easy-3, cache = FALSE}
+#prepare data
+require(compiler)
+#################East 3 Cluster Data ##########
+X <- read.csv("../../data/easy_gen.csv", header = TRUE)
+ClassA <- X[,3]+1 #don't forget to start at 1 instead of 0.
+X<- scale(as.matrix(X[,1:2]))
+#################Iris Data#####################
+#X<- as.matrix(iris[,1:4])
+#ClassA <- as.numeric(iris[,5])
+###############################################
+rfrus <- cmpfun(rfrus)
+dist <- cmpfun(dist)
+forest <- rfrus(X,trees=numtrees)
+
+trees <- NULL
+
+data <- matrix(0,nrow=length(seq(initialTree, maxTree, byVal)), ncol=maxD-1)
+for(f in seq(initialTree, maxTree, byVal)){
+for(k in 2:maxD){
+dMat <- dist(X, forest[1:f], k)
+ClassU <- specN(scale(dMat), 3)
+oe<-1-CheckKmeans(ClassA, ClassU)[1]
+data[((f-initialTree)/byVal)+1, k-1] <- round(oe,2)
+}
+  trees <- c(trees,f)
+}
+data <- data.frame(data)
+colnames(data)<- c(2:maxD)
+trees<-as.factor(trees)
+data <- cbind(trees,data)
+
+data.m <- melt(data)
+colnames(data.m)<-c("trees","depth", "value")
+
+ data.m <- ddply(data.m, .(depth), transform, rescale = rescale(value))
+ p <- ggplot(data.m, aes(depth, trees)) + 
+         geom_tile(aes(fill = rescale), colour = "white") 
+ p + scale_fill_gradient(low = "white", high = "steelblue")+geom_text(aes(label=value))
+```

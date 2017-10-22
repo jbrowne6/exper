@@ -1,0 +1,254 @@
+---
+title: "Test speed-up and scale-up of R-Rerf Iteration 8"
+author: "James Browne"
+date: "May 16 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+##source('rfr_function.R')
+library(ggplot2)
+nTimes <-20
+run_su <- TRUE
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+close(image_block)
+close(label_block)
+gc()
+```
+
+Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
+
+**********************************************************************
+#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+```{r speed_upNew, cache = FALSE}
+#create impossible dataset
+num_trees <- 256
+line_type <- NA
+cores_used <- NA
+median_time <- NA
+speed_up <- NA
+entry <-1
+numS<- 60000
+ML <- 7
+source('new_rfr.R')
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (60000x784)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+
+for (p in 2:ML){
+	q<- 2^(p-1)
+	line_type[entry]<-"Ideal"
+	cores_used[entry] <- q
+	median_time[entry]<-2 
+	speed_up[entry]<- q
+    entry<-entry+1
+}
+}
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+```
+
+```{r speed_up_printNew, cache = FALSE}
+if(run_su){
+save(ress1, file="exp0025speedUpNew.Rdata")
+amCalcSU<-(speed_up[1])/(speed_up[2])
+cat("Amdahl's Number: ", (8/speed_up[7] - 8)/(1-8), "\n")
+amCalcSU<-(speed_up[2])/(speed_up[3])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[3])/(speed_up[4])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[4])/(speed_up[5])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+cat("training times: ", median_time, "\n")
+
+cat("Dataset Size: ", data_size_curr ,"MB\n")
+cat(numS, " samples from the MNIST dataset")
+lab <- labs(title="New R-RerF Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: ", data_size_curr, "MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg +scale_y_continuous(trans = "log2", breaks = c(1,2,4,8,16,32,64)))
+
+gc()
+}
+```
+
+```{r speed_upRerf, cache = FALSE}
+#create impossible dataset
+num_trees <- 256
+line_type <- NA
+cores_used <- NA
+median_time <- NA
+speed_up <- NA
+entry <-1
+numS<- 60000
+ML <- 7
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+if(exists("comp_err")){rm("comp_err", envir=.GlobalEnv)}
+    if(exists("comp_errOOB")){rm("comp_errOOB", envir=.GlobalEnv)}
+    if(exists("comp_rfr")){rm("comp_rfr", envir=.GlobalEnv)}
+source("tyler.R")
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rerf(X[1:numS,],Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (60000x784)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+
+for (p in 2:ML){
+	q<- 2^(p-1)
+	line_type[entry]<-"Ideal"
+	cores_used[entry] <- q
+	median_time[entry]<-2 
+	speed_up[entry]<- q
+    entry<-entry+1
+}
+}
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+```
+
+```{r speed_up_printRerf, cache = FALSE}
+if(run_su){
+save(ress1, file="exp0025speedUpRerf.Rdata")
+amCalcSU<-(speed_up[1])/(speed_up[2])
+cat("Amdahl's Number: ", (8/speed_up[7] - 8)/(1-8), "\n")
+amCalcSU<-(speed_up[2])/(speed_up[3])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[3])/(speed_up[4])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[4])/(speed_up[5])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+cat("training times: ", median_time, "\n")
+
+cat("Dataset Size: ", data_size_curr ,"MB\n")
+cat(numS, " samples from the MNIST dataset")
+lab <- labs(title="Rcpp R-RerF Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: ", data_size_curr, "MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg +scale_y_continuous(trans = "log2", breaks = c(1,2,4,8,16,32,64)))
+
+gc()
+}
+```
+
+```{r speed_upRanger, cache = FALSE}
+#create impossible dataset
+num_trees <- 256
+line_type <- NA
+cores_used <- NA
+median_time <- NA
+speed_up <- NA
+entry <-1
+numS<- 60000
+ML <- 7
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+library(ranger)
+X <- cbind(X,Y)
+colnames(X) <- as.character(1:ncol(X))
+gc()
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (60000x784)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+
+for (p in 2:ML){
+	q<- 2^(p-1)
+	line_type[entry]<-"Ideal"
+	cores_used[entry] <- q
+	median_time[entry]<-2 
+	speed_up[entry]<- q
+    entry<-entry+1
+}
+}
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+```
+
+```{r speed_up_printRanger, cache = FALSE}
+if(run_su){
+save(ress1, file="exp0025speedUpRerf.Rdata")
+amCalcSU<-(speed_up[1])/(speed_up[2])
+cat("Amdahl's Number: ", (8/speed_up[7] - 8)/(1-8), "\n")
+amCalcSU<-(speed_up[2])/(speed_up[3])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[3])/(speed_up[4])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[4])/(speed_up[5])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+cat("training times: ", median_time, "\n")
+
+cat("Dataset Size: ", data_size_curr ,"MB\n")
+cat(numS, " samples from the MNIST dataset")
+lab <- labs(title="Ranger R-RerF Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: ", data_size_curr, "MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg +scale_y_continuous(trans = "log2", breaks = c(1,2,4,8,16,32,64)))
+
+gc()
+}
+```
+

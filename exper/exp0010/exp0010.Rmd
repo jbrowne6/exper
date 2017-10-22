@@ -1,0 +1,348 @@
+---
+title: "Row vs Col major"
+author: "James Browne"
+date: "July 6 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+library(ggplot2)
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+
+
+nTimes <-20
+num_trees <-64 
+line_type <- NA
+cores_used <- NA
+median_time <- NA
+speed_up <- NA
+entry <-1
+numS<- 60000
+ML <- 6
+
+run_mnist <-TRUE 
+run_scu <-TRUE 
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+close(image_block)
+close(label_block)
+gc()
+```
+
+
+**********************************************************************
+#### Speed-up, 20 runs MNIST, MinParent=1, trees=64, MaxDepth=inf
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+```{r MNIST_brfr, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/brfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,]),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (breadth, col)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+save(res_brfr, file="data/brfr.Rdata")
+rm(res_brfr)
+
+}
+```
+
+```{r MNIST_dlrfr, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/dlrfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,]),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (depth(ran), col)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/dlrfr.Rdata")
+rm(res_brfr)
+
+}
+```
+
+
+```{r MNIST_dbrfr, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/dbrfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,]),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (depth(big), col)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/dbrfr.Rdata")
+rm(res_brfr)
+
+}
+```
+
+
+```{r MNIST_dsrfr, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/dsrfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,]),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (depth(small), col)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/dsrfr.Rdata")
+rm(res_brfr)
+}
+```
+
+```{r MNIST_brfrRow, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/brfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,], byrow=TRUE),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (breadth, row)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/brfrRow.Rdata")
+rm(res_brfr)
+
+}
+```
+
+```{r MNIST_dlrfrRow, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/dlrfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,], byrow=TRUE),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (depth(ran), row)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/dlrfrRow.Rdata")
+rm(res_brfr)
+
+}
+```
+
+
+```{r MNIST_dbrfrRow, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/dbrfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,], byrow=TRUE),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (depth(big), row)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/dbrfrRow.Rdata")
+rm(res_brfr)
+
+}
+```
+
+
+```{r MNIST_dsrfrRow, cache = FALSE}
+#create impossible dataset
+if (run_mnist == TRUE){
+  if(exists("comp_rfr")){
+  rm(comp_rfr, rfr)
+  }
+  source('code/dsrfr.R')
+
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+
+		for (p in 1:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- rfr(as.matrix(X[1:numS,], byrow=TRUE),Y[1:numS], trees=num_trees, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"MNIST (depth(small), row)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+res_brfr <- data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+
+save(res_brfr, file="data/dsrfrRow.Rdata")
+rm(res_brfr)
+}
+```

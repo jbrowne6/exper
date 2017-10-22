@@ -1,0 +1,385 @@
+---
+title: "Test speed-up and scale-up of R-Rerf Iteration 8"
+author: "James Browne"
+date: "May 16 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+source('rfr_function.R')
+library(ggplot2)
+nTimes <-20
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+run_mnist <-FALSE#TRUE 
+run_random <-TRUE#TRUE 
+run_higgs <-FALSE #FALSE
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+if(run_mnist){
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+close(image_block)
+close(label_block)
+gc()
+}
+```
+
+Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
+
+
+**********************************************************************
+#### Scale-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Scale Up, proportional increase in resource (number of samples and cores).  
+**********************************************************************
+```{r scale-up-n, cache = FALSE}
+if(run_mnist){
+#create impossible dataset
+#X <- as.matrix(replicate(32,rnorm(60000)))
+#Y <- as.numeric(sample(1:4, 60000, replace=TRUE))
+num_trees <-64 
+data_size <- NA
+cores_used <- NA
+median_time <- NA
+scale_up <- NA
+entry <- 1
+line_type <- NA
+baseS <- 2500
+facE <- 1.72
+facEX<-c(1,1.75,1.76,1.77,1.78,1.79,1.8) #for nlog2(n)
+facEX2<-c(1,1.86,1.87,1.87,1.88,1.89,1.89) #for nlog(n)
+facE2 <- 1.83
+data_size_curr <- (object.size(X[1:baseS,])+object.size(Y[1:baseS]))/1000000
+initial_run_entry<-entry
+    facm <- baseS
+for (m in 2:6){
+    facm <- facm*facEX[m-1]
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "nlog^2(n)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+line_type[entry] <- "Ideal"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-1 
+		entry = entry+1
+}
+facm <- baseS
+initial_run_entry<-entry
+for (m in 2:6){
+    facm <- facm*facEX2[m-1]
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "nlogn"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+}
+facm <- baseS/2
+initial_run_entry<-entry
+for (m in 2:6){
+    facm <- facm*2
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "n"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+}
+
+
+ress2<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Scale_Up=scale_up)
+}
+```
+
+```{r scale-up-n_print, cache = FALSE}
+if(run_mnist){
+save(ress2, file="exp0002scaleUpMnist.Rdata")
+Tics <- scale_y_continuous(breaks=c(0.0,0.5,1.0),labels=c(0.0,0.5,1.0))
+print(ggplot(ress2,aes(x=Cores_Used, y=Scale_Up, group=Line_Type, color=Line_Type))+geom_line()+labs(title="R-RerF Weak Scaling", x="Number of Cores", y="Relative Performance", subtitle=paste("MNIST, initial number of samples: ", baseS,"\nIdeal assumes average case complexity\n10 classes, 784 features"))+expand_limits(y=c(0,1))+leg+Tics)
+}
+gc()
+```
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView2, cache = FALSE}
+if(run_higgs){
+mydata <- read.csv(file="../../../data/higgs/training.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,2:32])
+Y <- as.numeric(mydata[,33])
+mydata <- NA
+
+gc()
+}
+```
+
+Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
+
+
+**********************************************************************
+#### Scale-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Scale Up, proportional increase in resource (number of samples and cores).  
+**********************************************************************
+```{r scale-up-n2, cache = FALSE}
+if(run_higgs){
+#create impossible dataset
+#X <- as.matrix(replicate(32,rnorm(60000)))
+#Y <- as.numeric(sample(1:4, 60000, replace=TRUE))
+num_trees <-64 
+data_size <- NA
+cores_used <- NA
+median_time <- NA
+scale_up <- NA
+entry <- 1
+line_type <- NA
+baseS <- 2500
+facE <- 1.72
+facEX<-c(1,1.75,1.76,1.77,1.78,1.79,1.8) #for nlog2(n)
+facEX2<-c(1,1.86,1.87,1.87,1.88,1.89,1.89) #for nlog(n)
+facE2 <- 1.83
+data_size_curr <- (object.size(X[1:baseS,])+object.size(Y[1:baseS]))/1000000
+initial_run_entry<-entry
+    facm <- baseS
+for (m in 2:6){
+    facm <- facm*facEX[m-1]
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "nlog^2(n)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+line_type[entry] <- "Ideal"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-1 
+		entry = entry+1
+}
+facm <- baseS
+initial_run_entry<-entry
+for (m in 2:6){
+    facm <- facm*facEX2[m-1]
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "nlogn"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+}
+facm <- baseS/2
+initial_run_entry<-entry
+for (m in 2:6){
+    facm <- facm*2
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "n"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+}
+
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Scale_Up=scale_up)
+}
+```
+
+```{r scale-up-n_print2, cache = FALSE}
+if(run_higgs){
+save(ress1, file="exp0002scaleUpHiggs.Rdata")
+Tics <- scale_y_continuous(breaks=c(0.0,0.5,1.0),labels=c(0.0,0.5,1.0))
+print(ggplot(ress1,aes(x=Cores_Used, y=Scale_Up, group=Line_Type, color=Line_Type))+geom_line()+labs(title="R-RerF Weak Scaling", x="Number of Cores", y="Relative Performance", subtitle=paste("Higgs, initial number of samples: ", baseS,"\nIdeal assumes average case complexity\n2 Classes, 31 features"))+expand_limits(y=c(0,1))+leg+Tics)
+}
+gc()
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView3, cache = FALSE}
+if(run_random){
+X <- as.matrix(replicate(784,rnorm(60000)))
+Y <- as.numeric(sample(1:10,60000, replace=TRUE))
+
+gc()
+}
+```
+
+
+**********************************************************************
+#### Scale-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Scale Up, proportional increase in resource (number of samples and cores).  
+**********************************************************************
+```{r scale-up-n3, cache = FALSE}
+if(run_random){
+#create impossible dataset
+#X <- as.matrix(replicate(32,rnorm(60000)))
+#Y <- as.numeric(sample(1:4, 60000, replace=TRUE))
+num_trees <-64 
+data_size <- NA
+cores_used <- NA
+median_time <- NA
+scale_up <- NA
+entry <- 1
+line_type <- NA
+baseS <- 2500
+facE <- 1.72
+facEX<-c(1,1.75,1.76,1.77,1.78,1.79,1.8) #for nlog2(n)
+facEX2<-c(1,1.86,1.87,1.87,1.88,1.89,1.89) #for nlog(n)
+facE2 <- 1.83
+data_size_curr <- (object.size(X[1:baseS,])+object.size(Y[1:baseS]))/1000000
+initial_run_entry<-entry
+    facm <- baseS
+for (m in 2:6){
+    facm <- facm*facEX[m-1]
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "nlog^2(n)"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+line_type[entry] <- "Ideal"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-1 
+		entry = entry+1
+}
+facm <- baseS
+initial_run_entry<-entry
+for (m in 2:6){
+    facm <- facm*facEX2[m-1]
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "nlogn"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+}
+facm <- baseS/2
+initial_run_entry<-entry
+for (m in 2:6){
+    facm <- facm*2
+numS <- floor(facm)
+		q <- 2^(m-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			ptm <- proc.time()
+			forest <- rfr(X[1:numS,],Y[1:numS], trees=num_trees, bagging=0, MinParent=1, MaxDepth="inf",COOB=TRUE, stratify=TRUE, NumCores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+line_type[entry] <- "n"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		scale_up[entry]<-median_time[initial_run_entry]/median_time[entry] 
+		entry = entry+1
+}
+
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Scale_Up=scale_up)
+}
+```
+
+```{r scale-up-n_print3, cache = FALSE}
+if(run_random){
+save(ress1, file="exp0002scaleUpRandom.Rdata")
+Tics <- scale_y_continuous(breaks=c(0.0,0.5,1.0),labels=c(0.0,0.5,1.0))
+print(ggplot(ress1,aes(x=Cores_Used, y=Scale_Up, group=Line_Type, color=Line_Type))+geom_line()+labs(title="R-RerF Weak Scaling", x="Number of Cores", y="Relative Performance", subtitle=paste("Random, initial number of samples: ", baseS,"\nIdeal assumes average case complexity\n10 Classes, 784 features"))+expand_limits(y=c(0,1))+leg+Tics)
+}
+gc()
+```

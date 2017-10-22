@@ -1,0 +1,225 @@
+---
+title: "Test speed-up and scale-up of R-Rerf Iteration 8"
+author: "James Browne"
+date: "May 16 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+##source('rfr_function.R')
+library(ggplot2)
+library(rerf)
+nTimes <- 2
+run_su <- TRUE
+num_trees <- 64
+ML <- 6
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+mydata <- read.csv(file="../../data/p53.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,1:ncol(mydata)-1])
+Y <- as.numeric(mydata[,ncol(mydata)])
+numS<- nrow(X)
+mydata <- NA
+gc()
+```
+
+**********************************************************************
+#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+
+```{r speed_upRerf, cache = FALSE}
+if(TRUE){
+#create impossible dataset
+line_type <- NA
+cores_used <- NA
+median_time <- NA
+speed_up <- NA
+entry <-1
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"RerF"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+q <- 48
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=q)
+            
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"RerF"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+
+}
+}
+```
+
+```{r speed_upXG, cache = FALSE}
+if(TRUE){
+#create impossible dataset
+library(xgboost)
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+#X[] <- lapply(X, as.numeric)
+print(unique(Y))
+flush.console()
+num_classes <- length(unique(Y))
+#3train <- as.matrix(iris[,1:4])
+#str(apply(X,2,as.numeric))
+train <- apply(X,2,as.numeric)
+#label <- as.numeric(iris[,5])-1
+label <- Y-1
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+	#		forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"XGBoost"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+q <- 48
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+	#		forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"XGBoost"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+
+}
+}
+```
+
+```{r speed_upRanger, cache = FALSE}
+#create impossible dataset
+initial_run_entry<-entry
+data_size_curr <- (object.size(X[1:numS,])+object.size(Y[1:numS]))/1000000
+library(ranger)
+X <- cbind(X,Y)
+colnames(X) <- as.character(1:ncol(X))
+gc()
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"Ranger"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+q <- 48
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"Ranger"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+
+
+for (p in 2:ML){
+	q<- 2^(p-1)
+	line_type[entry]<-"Ideal"
+	cores_used[entry] <- q
+	median_time[entry]<-2 
+	speed_up[entry]<- q
+    entry<-entry+1
+}
+q<- 48
+	line_type[entry]<-"Ideal"
+	cores_used[entry] <- q
+	median_time[entry]<-2 
+	speed_up[entry]<- q
+
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = as.factor(cores_used), Time_Sec=median_time, Speed_Up=speed_up)
+```
+
+```{r speed_up_printRanger, cache = FALSE}
+
+if(run_su){
+ress1[,2]<-as.numeric(as.character(ress1[,2]))
+save(ress1, file="exp0030v2.Rdata")
+amCalcSU<-(speed_up[1])/(speed_up[2])
+cat("Amdahl's Number: ", (8/speed_up[7] - 8)/(1-8), "\n")
+amCalcSU<-(speed_up[2])/(speed_up[3])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[3])/(speed_up[4])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+amCalcSU<-(speed_up[4])/(speed_up[5])
+cat("Amdahl's Number: ", 1/2*((1-amCalcSU)+(amCalcSU/2)), "\n")
+cat("training times: ", median_time, "\n")
+
+cat("Dataset Size: ", data_size_curr ,"MB\n")
+cat(numS, " samples from the p53 dataset")
+lab <- labs(title="Forest Algorithm Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: ", data_size_curr, "MB"))
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg)
+
+gc()
+}
+```
+

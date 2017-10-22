@@ -1,0 +1,119 @@
+---
+title: "Test speed and accuracy of R-Rerf Iteration 13"
+author: "James Browne"
+date: "May 12, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+source('../../code/rfr_us.R')
+library(ggplot2)
+```
+This iteration trains the forest using 2 cores.  This iteration reduces the space requirements to store the forest data structure and improved the testing speed.
+
+**********************************************************************
+#### 10 runs iris, MinParent=6, trees=100, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X)
+**********************************************************************
+```{r run-iris, cache = FALSE}
+#prepare data
+if(FALSE){
+X <- as.matrix(iris[,1:4])
+plot(X)
+for(z in 5:5){
+#for(z in 2:10){
+forest <- rfrus(X, trees = 100, MaxDepth = z)
+dMat <- dist(X, forest)
+heatmap(dMat)
+}
+#Y <- specU(dMat,3)
+Yt <- specN(dMat, 3)
+plot(as.numeric(iris[,5]))
+plot(Yt)
+CheckKmeans(as.numeric(iris[,5]),Yt)
+}
+```
+
+**********************************************************************
+#### Well separated data, 1 dimensional should result in perfect classification.
+**********************************************************************
+```{r run-well-separated, cache = FALSE}
+if(FALSE){
+X <- matrix(nrow=200, ncol=2)
+X[1:100,1] <- sample(c(1:20), 100, TRUE)
+X[1:100,2] <- sample(c(1:20), 100, TRUE)
+X[101:200,1] <- sample(c(1000:1020), 100, TRUE)
+X[101:200,2] <- sample(c(1000:1020), 100, TRUE)
+plot(X)
+for(z in 5:5){
+#for(z in 2:10){
+forest <- rfrus(as.matrix(X), trees = 100, MaxDepth = 2)
+dMat <- dist(X, forest)
+heatmap(dMat)
+}
+#Y <- specU(dMat,2)
+Yt <- specN(dMat, 2)
+#Yx <- kmeans(X, 2)$cluster
+Y <- integer()
+Y[1:100] <- 1
+Y[101:200] <- 2
+plot(Y)
+plot(Yt)
+CheckKmeans(Y,Yt)
+}
+```
+
+
+**********************************************************************
+#### Small Well separated data, 1 dimensional should result in perfect classification.
+**********************************************************************
+```{r run-well-separated-small, cache = FALSE}
+if(FALSE){
+X <- matrix(nrow=8, ncol=2)
+X[1:4,1] <- sample(c(1:20), 4, TRUE)
+X[5:8,1] <- sample(c(1000:1020), 4, TRUE)
+X[1:4,2] <- sample(c(1:20), 4, TRUE)
+X[5:8,2] <- sample(c(1000:1020), 4, TRUE)
+#plot(X)
+forest <- rfrus(as.matrix(X), trees = 100)
+dMat <- dist(X, forest)
+#Y <- specU(dMat,2)
+Yt <- specN(dMat, 2)
+Y <- integer()
+Y [1:4] <- 1
+Y [5:8] <- 2
+plot(Y)
+plot(Yt)
+CheckKmeans(Y,Yt)
+}
+```
+**********************************************************************
+#### 10 runs Easy set (2000x2), MinParent=6, trees=100, MaxDepth=0, bagging = .2, FUN=makeA, options=ncol(X)
+**********************************************************************
+```{r run-easy, cache = FALSE}
+if(TRUE){
+#prepare data
+X <- read.csv("../../data/easy_gen.csv", header = TRUE)
+Y <- X[,3]+1 #don't forget to start at 1 instead of 0.
+X<- as.matrix(X[,1:2])
+plot(X)
+ideal <- matrix(0, 2000, 2000)
+ideal[1:1000, 1:1000] <- 1000
+ideal[1001:1500, 1001:1500] <- 500
+ideal[1501:2000,1501:2000] <- 500 
+heatmap(t(ideal),Rowv=NA, Colv=NA, main=paste("ideal"))
+
+forest <- rfrus(X,trees=100)
+for(z in 1:8){
+dMat <- dist(X, forest, z)
+#heatmap(dMat,Rowv=NA, Colv=NA, main=paste("D=",z ))
+heatmap(dMat,Rowv=NA, Colv=NA, main=paste("D=",z ))
+}
+
+#Yt <- specN(dMat, 3)
+#plot(Y)
+#plot(Yt)
+#CheckKmeans(Y,Yt)
+}
+```
+

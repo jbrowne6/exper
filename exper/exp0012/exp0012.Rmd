@@ -1,0 +1,92 @@
+---
+title: "Test speed and accuracy of R-Rerf Iteration 13"
+author: "James Browne"
+date: "May 12, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+source('rfr_us.R')
+library(ggplot2)
+numtrees <- 100
+```
+This iteration trains the forest using 2 cores.  This iteration reduces the space requirements to store the forest data structure and improved the testing speed.
+
+**********************************************************************
+#### 10 runs Easy set (2000x2), MinParent=6, trees=100, MaxDepth=0, bagging = .2, FUN=makeA, options=ncol(X)
+**********************************************************************
+```{r run-easy, cache = FALSE}
+#prepare data
+require(compiler)
+#X <- read.csv("../../data/easy_gen.csv", header = TRUE)
+#ClassA <- X[,3]+1 #don't forget to start at 1 instead of 0.
+#X<- as.matrix(X[,1:2])
+X<- as.matrix(iris[,1:4])
+ClassA <- as.numeric(iris[,5])
+rfrus <- cmpfun(rfrus)
+dist <- cmpfun(dist)
+forest <- rfrus(X,trees=numtrees)
+
+colUsed <- NULL
+for(z in 1:length(forest)){
+for(k in 1:length(forest[[z]]$matA)){
+if(!is.null(forest[[z]]$matA[[k]])){
+for(m in seq(1, length(forest[[z]]$matA[[k]]), 2)){
+colUsed <- c(colUsed, forest[[z]]$matA[[k]][m])
+}
+}
+}
+}
+
+
+layout(matrix(c(1,2,3,3), 2,2, byrow=TRUE))
+#par(mfrow=c(1,2))
+plot(X, main="3 Distinct Clusters", col=ClassA)
+legend("right", legend=unique(ClassA), col=1:length(ClassA), pch=1)
+barplot(table(colUsed))
+plot(ClassA, main="Actual Labels", col=ClassA)
+layout(matrix(c(1,2,3,4,5,6), 3,2))
+for(c in 2:7){
+dMat <- dist(X, forest, c)
+ClassU <- specN(dMat, 3)
+oe<-CheckKmeans(ClassA, ClassU)
+#heatmap(dMat, symm=TRUE, Rowv = NA, Colv = NA, main=paste("Depth: ", c, " Overall error: ", 1-oe[1]))
+plot(ClassU, main=paste("Unsupervised, Dep= ", c," err= ", 1-oe[1]), col=ClassA)
+}
+```
+
+```{r run-easy-sd, cache = FALSE}
+#prepare data
+source('rfr_us_p.R')
+rfrus <- cmpfun(rfrus)
+dist <- cmpfun(dist)
+forest <- rfrus(X,trees=numtrees)
+
+colUsed <- NULL
+for(z in 1:length(forest)){
+for(k in 1:length(forest[[z]]$matA)){
+if(!is.null(forest[[z]]$matA[[k]])){
+for(m in seq(1, length(forest[[z]]$matA[[k]]), 2)){
+colUsed <- c(colUsed, forest[[z]]$matA[[k]][m])
+}
+}
+}
+}
+
+layout(matrix(c(1,2,3,3), 2,2, byrow=TRUE))
+#par(mfrow=c(1,2))
+plot(X, main="3 Distinct Clusters", col=ClassA)
+legend("right", legend=unique(ClassA), col=1:length(ClassA), pch=1)
+barplot(table(colUsed))
+plot(ClassA, main="Actual Labels", col=ClassA)
+layout(matrix(c(1,2,3,4,5,6), 3,2))
+for(c in 2:7){
+dMat <- dist(X, forest, c)
+ClassU <- specN(dMat, 3)
+oe<-CheckKmeans(ClassA, ClassU)
+#heatmap(dMat, symm=TRUE, Rowv = NA, Colv = NA, main=paste("Depth: ", c, " Overall error: ", 1-oe[1]))
+plot(ClassU, main=paste("Unsupervised, Dep= ", c," err= ", 1-oe[1]), col=ClassA)
+}
+```
+

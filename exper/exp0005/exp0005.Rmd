@@ -1,0 +1,71 @@
+---
+title: "Test Higgs"
+author: "James Browne"
+date: "June 23, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+source('rfr_function.R')
+library(ggplot2)
+nTimes <-3
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+mydata <- read.csv(file="../exp0004/higgs/training.csv", header=TRUE, sep=",")
+X <- as.matrix(mydata[,2:32])
+Y <- as.numeric(mydata[,33])
+mydata <- NA
+gc()
+```
+
+**********************************************************************
+#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+```{r speed_up, cache = FALSE}
+#create impossible dataset
+ntrees <-c(24, 48, 96)
+ncores <- c(1, 2, 4, 8)
+trees <- NA
+median_time <- NA
+line_type <- NA
+num_cores <- NA
+entry <-1
+initial_run_entry<-entry
+data_size_curr <- (object.size(X)+object.size(Y))/1000000
+
+for (z in ntrees){
+		forest <- rfr(X,Y, trees=z, bagging=.3, MinParent=1, MaxDepth="inf", COOB=TRUE, stratify=TRUE, NumCores=24)
+		for (p in ncores){
+		    ptm_hold <- NA
+		    #for (p in ncores){
+		    for (i in 1:nTimes){
+		    	gc()
+		    	ptm <- proc.time()
+                tmat <- OOBpredict(X,Y, forest, NumCores=p)
+			    ptm_hold[i] <- (proc.time() - ptm)[3]
+		    }
+		    line_type[entry]<-paste(z, "Trees")
+        num_cores[entry] <- p
+		median_time[entry]<- median(ptm_hold)
+        entry<-entry+1
+        }
+}
+
+```
+
+```{r speed_up_print, cache = FALSE}
+ress1<-data.frame(Line_Type=as.factor(line_type), Num_Cores = num_cores, Time_Sec=median_time)
+print(ress1)
+save(ress1, file="exp0005.Rdata")
+cat("Dataset Size: ", data_size_curr ,"MB\n")
+lab <- labs(title="Higgs Predict Training Time", x="Number of Cores", y="Training Time(s)", subtitle =paste("Higgs Dataset, 250000x31, Size: ", data_size_curr, "MB"))
+print(ggplot(ress1,aes(x=Num_Cores, y=Time_Sec, group=Line_Type, color=Line_Type))+geom_line()+lab +leg )
+```

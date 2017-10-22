@@ -1,0 +1,197 @@
+---
+title: "Test speed as a function of cores"
+author: "James Browne"
+date: "May 16 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+##source('rfr_function.R')
+library(ggplot2)
+nTimes <- 2
+run_su <- TRUE
+num_trees <- 96
+ML <- 6
+entry <-1
+line_type <- NA
+cores_used <- NA
+median_time <- NA
+speed_up <- NA
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+```
+
+
+**********************************************************************
+#### Loading the images and labels
+**********************************************************************
+```{r LoadView, cache = FALSE}
+#Size of the labels is 1 whereas everything else is 4
+#Open and position the image file
+image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
+q <- readBin(image_block, integer(), n=1, endian="big")
+num_images <- readBin(image_block, integer(), n=1, endian="big")
+num_col <- readBin(image_block, integer(), n=1, endian="big")
+num_row <- readBin(image_block, integer(), n=1, endian="big")
+
+#Open and position the label file
+label_block = file("../../data/ubyte/train-labels-idx1-ubyte", "rb")
+q <- readBin(label_block, integer(), n=1, endian="big")
+num_labels <- readBin(label_block, integer(), n=1, endian="big")
+
+X <- readBin(image_block, integer(), n=num_images*num_col*num_row, size=1, signed=FALSE)
+X <- matrix(X, ncol=num_col*num_row, byrow=TRUE)
+
+Y <- as.numeric(readBin(label_block, integer(), n=num_labels, size=1, signed=FALSE)+1)
+
+close(image_block)
+close(label_block)
+gc()
+data_size_curr <- (object.size(X)+object.size(Y))/1000000
+```
+
+Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
+
+**********************************************************************
+#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
+Speed-up: testing time reduction as number of cores grows.  
+**********************************************************************
+
+```{r speed_upRerf, cache = FALSE}
+if(TRUE){
+#create impossible dataset
+initial_run_entry<-entry
+library(rerf)
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=q, seed=sample(1:100000,1))
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"RerF"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)/num_trees
+        entry<-entry+1
+	}
+
+q <- 48
+ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"RerF"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)/num_trees
+        entry<-entry+1
+}
+
+```
+
+```{r speed_upXG, cache = FALSE}
+#create impossible dataset
+library(xgboost)
+initial_run_entry<-entry
+num_classes <- length(unique(Y))
+train <- apply(X,2,as.numeric)
+label <- Y-1
+if(run_su){
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees, num_class=num_classes, nthread=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+		}
+		line_type[entry]<-"XGBoost"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)/num_trees
+        entry<-entry+1
+	}
+
+q <- 48
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=q)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+	#		forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"XGBoost"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)/num_trees
+        entry<-entry+1
+
+}
+
+```
+
+```{r speed_upRanger, cache = FALSE}
+#create impossible dataset
+initial_run_entry<-entry
+library(ranger)
+X <- cbind(X,Y)
+colnames(X) <- as.character(1:ncol(X))
+gc()
+		for (p in 2:ML){
+		q <- 2^(p-1)
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"Ranger"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)/num_trees
+		#speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
+        entry<-entry+1
+	}
+
+		q <- 48
+		ptm_hold <- NA
+		forest_hold <- NA
+		for (i in 1:nTimes){
+			gc()
+			ptm <- proc.time()
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = q, classification=TRUE)
+			ptm_hold[i] <- (proc.time() - ptm)[3]
+			forest[i] <- object.size(forest)
+		}
+		line_type[entry]<-"Ranger"
+		cores_used[entry] <- q
+		median_time[entry]<- median(ptm_hold)/num_trees
+        entry<-entry+1
+
+```
+
+```{r speed_up_print, cache = FALSE}
+
+ress1<-data.frame(Line_Type=as.factor(line_type), Cores_Used = cores_used, Time_Sec=median_time)
+save(ress1, file="exp0033.Rdata")
+
+lab <- labs(title="Per Tree Training Time vs Number of Threads", x="Number of Threads", y="Time (s)", subtitle =paste("Dataset Size: MNIST (60000x784)"))
+
+print(ggplot(ress1,aes(x=Cores_Used, y=Time_Sec, group=Line_Type, color=Line_Type))+geom_line()+lab +leg)
+
+gc()
+
+```
+

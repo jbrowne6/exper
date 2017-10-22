@@ -1,0 +1,9 @@
+[1] "RerF median training time:  47.08"
+[1] "RerF median memory:  189189808"
+[1] "RerFW median training time:  78.5"
+[1] "RerFW median memory:  189363538"
+            used   (Mb) gc trigger   (Mb)  max used   (Mb)
+Ncells   1098124   58.7    1770749   94.6   1770749   94.6
+Vcells 201258294 1535.5  482139885 3678.5 401559316 3063.7
+[1] "Ranger median training time:  32.052"
+[1] "Ranger median memory:  50428398"
