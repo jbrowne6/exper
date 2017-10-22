@@ -69,7 +69,7 @@ ptm_hold <- NA
 		line_type[entry]<-"RerF"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
-		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
 cat("rerf Ah calc") 
@@ -188,7 +188,7 @@ gc()
 		line_type[entry]<-"Ranger"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
-		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 	}
 
@@ -205,7 +205,7 @@ gc()
 		line_type[entry]<-"Ranger"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
-		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
         cat("ranger Ah calc") 
@@ -228,6 +228,6 @@ save(amCal, file="exp0036Anum.Rdata")
 flush.console()
 
 lab <- labs(title="Forest Algorithm Strong Scaling", x="Number of Cores", y="Relative Performance", subtitle =paste("Dataset Size: Higgs(250000x31)"))
-print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg)
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg+geom_text(x = 15, y =40 , label =paste("Amdahl Number\nRerF: ",signif(amCal[2,2], digits=2),"\nXGBoost: ", signif(amCal[4,2], digits=2), "\nRanger: ", signif(amCal[5,2],digits=2))))
 ```
 

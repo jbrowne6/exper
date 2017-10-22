@@ -16,13 +16,11 @@ leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank()
 ```{r speed_upRanger, cache = FALSE}
 #create impossible dataset
 ```{r speed_up_printRanger, cache = FALSE}
-load(file="accuracy.Rdata")
+load(file="testTime.Rdata")
 
 leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
-#ress1<-with(ress1, ress1[order(variable,Dataset),])
-#print(g <- ggplot(ress1, aes(Dataset, value, color=variable))+geom_jitter(size=1,position=position_dodge(0.8))+ leg + labs(title="Error Rates", x="Dataset", y="Average Error Rate ", subtitle=paste("")))
-#print(g <- ggplot(ress1, aes(Dataset, value))+geom_jitter(size=1,aes(color = variable))+ leg + labs(title="Error Rates", x="Dataset", y="Average Error Rate ", subtitle=paste("")))
-print(g <- ggplot(ress1, aes(Dataset, value,color = variable)) + geom_point(position=position_jitterdodge(dodge.width=0.5))+ leg + labs(title="Error Rates", x="Dataset", y="Average Error Rate ", subtitle=paste("")))
-#print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity") + leg + labs(title="Algorithm Training Times", x="Dataset", y="Per Tree Training Time (s)", subtitle=paste("")))
+
+#print(g <- ggplot(ress1, aes(Dataset, value,color = variable)) + geom_bar(stat="identity", position=position_dodge())+ leg + labs(title="Test Times Single Core", x="Dataset", y="Test Time (s) ", subtitle=paste("")))
+print(g <- ggplot(ress1, aes(Dataset, value,color = variable, fill=variable)) + geom_bar(stat="identity", position=position_dodge())+ leg + labs(title="Test Times Single Core", x="Dataset", y="Test Time (s) ", subtitle=paste("")))
 ```
 
