@@ -1,7 +1,7 @@
 #! /bin/bash
-cd exp0036
-Rscript -e "rmarkdown::render('exp0036.Rmd')"
-cd ../exp0037
-Rscript -e "rmarkdown::render('exp0037.Rmd')"
-cd ../exp0039
-Rscript -e "rmarkdown::render('exp0039.Rmd')"
+cd exp0029
+Rscript exp0029.R
+cd ../exp0041
+Rscript exp0041.R
+cd ../exp0032
+Rscript -e "rmarkdown::render('exp0032.Rmd')"

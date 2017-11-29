@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
 ##source('rfr_function.R')
 library(ggplot2)
-nTimes <- 2
+nTimes <- 10
 run_su <- TRUE
 num_trees <- 96
 ML <- 6

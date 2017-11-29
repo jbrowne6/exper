@@ -1,12 +1,10 @@
----
-title: "Test speed-up and scale-up of R-Rerf Iteration 8"
-author: "James Browne"
-date: "May 16 2017"
-output: html_document
----
+#---
+# title: "Test speed-up and scale-up of R-Rerf Iteration 8"
+#author: "James Browne"
+# date: "May 16 2017"
+#output: html_document
+#---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
 library(ggplot2)
 library(reshape)
  library(scales)
@@ -19,17 +17,13 @@ library(rerf)
 leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
 
 
-nTimes <- 2
-num_trees <- 5  
+nTimes <- 20
+num_trees <- 25  
 median_time <- NA
+num.cores <- 25
 data <- data.frame()
-```
 
 
-**********************************************************************
-#### Loading the images and labels
-**********************************************************************
-```{r LoadView, cache = FALSE}
 #Size of the labels is 1 whereas everything else is 4
 #Open and position the image file
 image_block <- file("../../data/ubyte/train-images-idx3-ubyte", "rb")
@@ -57,45 +51,34 @@ gc()
 NameResults <- "MNIST"
 Results <- NULL
 Alg <- NULL
-```
-
-Testing R-Rerf iter10 on growing easy and impossible(random) datasets.  Testing time and memory.
-
-**********************************************************************
-#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
-Speed-up: testing time reduction as number of cores grows.  
-**********************************************************************
-```{r MNIST_RerF, cache = FALSE}
-#create impossible dataset
 
 
+##################################  RerF #############################
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
 
-			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=1)
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=num.cores)
 			ptm_hold[i] <- object.size(forest)
 		}
         Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "RerF")
-```
 
-```{r MNIST_XGBoost, cache = FALSE}
-#create impossible dataset
+################################# Xgboost ################################
 num_classes <- length(unique(Y))
 train <- apply(X,2,as.numeric)
 label <- Y-1
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-            forest <- xgboost(data=train, label=label, objective="multi:softprob", nrounds=num_trees,num_class=num_classes, nthread=1)
-			ptm_hold[i] <- object.size(forest)
+            forest <- xgboost(data=train, label=label, objective="multi:softprob", nrounds=num_trees,num_class=num_classes, nthread=num.cores)
+			ptm_hold[i] <- object.size(forest)+ file.info("xgboost.model")$size
 		}
         Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "XGBoost")
-```
-```{r MNIST_RandomForest, cache = FALSE}
-#create impossible dataset
+
+
+########################## random forest ########################
 if(TRUE){
 Yrf<-as.factor(as.character(Y))
 		ptm_hold <- NA
@@ -108,32 +91,24 @@ Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "RF")
 
 }
-```
 
-```{r MNIST_Ranger, cache = FALSE}
-#create impossible dataset
+############################### ranger ######################################
 X <- cbind(X,Y)
 colnames(X) <- as.character(1:ncol(X))
 
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = 1, classification=TRUE)
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = num.cores, classification=TRUE)
 			ptm_hold[i] <- object.size(forest)
 		}
         Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "Ranger")
-```
 
 
-```{r MNIST_process, cache = FALSE}
 data <- rbind(data, Results)
-```
 
-**********************************************************************
-#### Loading Higgs
-**********************************************************************
-```{r LoadViewHiggs, cache = FALSE}
+############################  Higgs ##################################
 mydata <- read.csv(file="../../data/higgs/training.csv", header=TRUE, sep=",")
 X <- as.matrix(mydata[,2:32])
 Y <- as.numeric(mydata[,33])
@@ -143,27 +118,19 @@ gc()
 NameResults <- c(NameResults, "Higgs")
 Results <- NULL
 Alg <- NULL
-```
 
-**********************************************************************
-#### Speed-up, 10 runs impossible data set, MinParent=6, trees=128, MaxDepth=0, bagging = .20, FUN=makeA, options=ncol(X), Breadth First
-Speed-up: testing time reduction as number of cores grows.  
-**********************************************************************
-```{r Higgs_RerF, cache = FALSE}
-#create impossible dataset
+################################## Rerf ################################
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=1)
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=num.cores)
 			ptm_hold[i] <- object.size(forest)
 		}
         
         Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "RerF")
-```
 
-```{r Higgs_XGBoost, cache = FALSE}
-#create impossible dataset
+############################# XGboost #############################
 num_classes <- length(unique(Y))
 train <- apply(X,2,as.numeric)
 label <- Y-1
@@ -171,14 +138,13 @@ label <- Y-1
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=1)
-			ptm_hold[i] <- object.size(forest)
+            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=num.cores)
+			ptm_hold[i] <- object.size(forest)+ file.info("xgboost.model")$size
 		}
 Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "XGBoost")
-```
-```{r Higgs_RandomForest, cache = FALSE}
-#create impossible dataset
+
+############################### RF ################################
 if(TRUE){
 
 Yrf<-as.factor(as.character(Y))
@@ -191,10 +157,8 @@ Yrf<-as.factor(as.character(Y))
 Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "RF")
 }
-```
 
-```{r Higgs_Ranger, cache = FALSE}
-#create impossible dataset
+################################### ranger ###########################
 X <- cbind(X,Y)
 colnames(X) <- as.character(1:ncol(X))
 
@@ -202,20 +166,17 @@ colnames(X) <- as.character(1:ncol(X))
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = 1, classification=TRUE)
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = num.cores, classification=TRUE)
 			ptm_hold[i] <- object.size(forest)
 		}
 Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "Ranger")
-```
 
 
-```{r Higgs_process, cache = FALSE}
 data <- rbind(data, Results)
-```
 
 
-```{r LoadViewp53, cache = FALSE}
+########################## p53 #####################################
 mydata <- read.csv(file="../../data/p53.csv", header=TRUE, sep=",")
 X <- as.matrix(mydata[,1:ncol(mydata)-1])
 Y <- as.numeric(mydata[,ncol(mydata)])
@@ -225,23 +186,19 @@ gc()
 NameResults <- c(NameResults, "p53")
 Results <- NULL
 Alg <- NULL
-```
 
-```{r p53_RerF, cache = FALSE}
-#create impossible dataset
+###################################### rerf ########################
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=1)
+			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=num.cores)
 			ptm_hold[i] <- object.size(forest)
 		}
         
         Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "RerF")
-```
 
-```{r p53_XGBoost, cache = FALSE}
-#create impossible dataset
+############################### xgboost ##############################
 num_classes <- length(unique(Y))
 train <- apply(X,2,as.numeric)
 label <- Y-1
@@ -249,14 +206,13 @@ label <- Y-1
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=1)
-			ptm_hold[i] <- object.size(forest)
+            forest <- xgboost(data=train, label=label, objective="multi:softprob",nrounds=num_trees,max_depth=30000, num_class=num_classes, nthread=num.cores)
+			ptm_hold[i] <- object.size(forest) + file.info("xgboost.model")$size
 		}
 Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "XGBoost")
-```
-```{r p53_RandomForest, cache = FALSE}
-#create impossible dataset
+
+##################################### rf ###########################
 if(TRUE){
 
 Yrf<-as.factor(as.character(Y))
@@ -269,10 +225,8 @@ Yrf<-as.factor(as.character(Y))
 Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "RF")
 }
-```
 
-```{r p53_Ranger, cache = FALSE}
-#create impossible dataset
+############################ ranger ############################
 X <- cbind(X,Y)
 colnames(X) <- as.character(1:ncol(X))
 
@@ -280,27 +234,29 @@ colnames(X) <- as.character(1:ncol(X))
 		ptm_hold <- NA
 		for (i in 1:nTimes){
 			gc()
-            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = 1, classification=TRUE)
+            forest <- ranger(dependent.variable.name = as.character(ncol(X)), data = X, num.trees = num_trees, num.threads = num.cores, classification=TRUE)
 			ptm_hold[i] <- object.size(forest)
 		}
 Results <- c(Results, median(ptm_hold)/1000000/num_trees)
         Alg <- c(Alg, "Ranger")
-```
 
 
-```{r p53_process, cache = FALSE}
 data <- rbind(data, Results)
-```
 
 
-```{r print_test, cache = FALSE}
 ress1 <- cbind(NameResults,data)
 colnames(ress1) <- c("Dataset", Alg)
 
-#ress1<-data.frame(Dataset=as.factor(dataset), Time_Sec=median_time, Line_Type = as.factor(line_type))
 ress1 <- melt(ress1, id.vars='Dataset')
 save(ress1, file="size.Rdata")
 
-print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity")+ leg + labs(title="Forest Size", x="Dataset", y="Average Tree Size (Mb)", subtitle=paste("")))
-#print(ggplot(ress2,aes(x=Cores_Used, y=Scale_Up, group=Line_Type, color=Line_Type))+geom_line()+labs(title="R-RerF Scale-Up", x="Number of Cores", y="Scale-Up", subtitle=paste("Initial number of samples: ", baseS))+expand_limits(y=c(0,1))+leg)
-```
+pWidth = 300
+pHeight = 300
+tWidth = pWidth * .05
+tHeight = .13 * pHeight
+
+cols <- c("Ideal"="#000000", "RerF"="#009E73", "XGBoost"="#E69F00", "Ranger"="#0072B2", "RF"="#CC79A7")
+
+png(file="exp0029.png", width=pWidth, height=pHeight)
+print(g <- ggplot(ress1, aes(Dataset, value)) + geom_bar(aes(fill = variable), position = "dodge", stat="identity")+ leg + labs(title="Forest Size", x="Dataset", y="Average Tree Size (Mb)")+ scale_fill_manual(values=cols))
+dev.off()

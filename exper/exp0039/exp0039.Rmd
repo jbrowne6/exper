@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
 ##source('rfr_function.R')
 library(ggplot2)
-nTimes <- 2
+nTimes <- 20
 run_su <- TRUE
-num_trees <- 96
+num_trees <- 384  
 ML <- 6
 entry <-1
 line_type <- NA
@@ -84,7 +84,7 @@ library(rerf)
 			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=6, store.oob=TRUE, stratify=TRUE, num.cores=48, seed=sample(1:100000,1))
 			ptm <- proc.time()
 predictions <- Predict(Xt, forest, num.cores = q)
-    error.rate <- mean(predictions != Yt)
+     error.rate <- sum(predictions != Yt)/length(Yt)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 			forest[i] <- object.size(forest)
 		}
@@ -103,14 +103,14 @@ ptm_hold <- NA
 			forest <- RerF(X,Y, trees=num_trees, bagging=.3, min.parent=1, max.depth=6, store.oob=TRUE, stratify=TRUE, num.cores=48)
 			ptm <- proc.time()
 predictions <- Predict(Xt, forest, num.cores =q)
-    error.rate <- mean(predictions != Yt)
+     error.rate <- sum(predictions != Yt)/length(Yt)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 			forest[i] <- object.size(forest)
 		}
 		line_type[entry]<-"MNIST"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
-		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+		speed_up[entry]<- 2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
 cat("MNIST Ah calc") 
@@ -200,7 +200,7 @@ forest$trees[[q]]$ClassProb[m] <- .5
             }
 			ptm <- proc.time()
 predictions <- Predict(Xte, forest, num.cores =q)
-     error.rate <- mean(predictions != Yte)
+     error.rate <- sum(predictions != Yte)/length(Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 		}
 		line_type[entry]<-"Higgs"
@@ -229,7 +229,7 @@ forest$trees[[q]]$ClassProb[m] <- .5
             }
 			ptm <- proc.time()
 predictions <- Predict(Xte, forest, num.cores =q)
-     error.rate <- mean(predictions != Yte)
+     error.rate <- sum(predictions != Yte)/length(Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 		}
 		line_type[entry]<-"Higgs"
@@ -244,7 +244,7 @@ for(t in 1:(ML-1)){
 cat("Amdahl's Number: ", 2-2/((median_time[initial_run_entry+currAh])/(median_time[initial_run_entry+currAh+1])), "\n")
 currAh<- currAh + 1
 }
-ahmdalNum <- c(ahmdalNum, ((2-2/(median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
+ahmdalNum <- c(ahmdalNum, (2-2/((median_time[initial_run_entry+3])/(median_time[initial_run_entry+4]))))
 ahmdalAlg <- c(ahmdalAlg, "Higgs")
 cat("training times: ", median_time, "\n")
 }
@@ -280,13 +280,13 @@ Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
 			forest <- RerF(Xtr,Ytr, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=48,seed=sample(1:100000,1))
 			ptm <- proc.time()
 predictions <- Predict(Xte, forest, num.cores =q)
-     error.rate <- mean(predictions != Yte)
+     error.rate <- sum(predictions != Yte)/length(Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 		}
 		line_type[entry]<-"p53"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
-		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 	}
 
@@ -304,13 +304,13 @@ Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
 			forest <- RerF(Xtr,Ytr, trees=num_trees, bagging=.3, min.parent=1, max.depth=0, store.oob=TRUE, stratify=TRUE, num.cores=48,seed=sample(1:100000,1))
 			ptm <- proc.time()
 predictions <- Predict(Xte, forest, num.cores =q)
-     error.rate <- mean(predictions != Yte)
+     error.rate <- sum(predictions != Yte)/length(Yte)
 			ptm_hold[i] <- (proc.time() - ptm)[3]
 					}
 		line_type[entry]<-"p53"
 		cores_used[entry] <- q
 		median_time[entry]<- median(ptm_hold)
-		speed_up[entry]<-median_time[initial_run_entry]/median_time[entry]
+		speed_up[entry]<-2*median_time[initial_run_entry]/median_time[entry]
         entry<-entry+1
 
         cat("p53 Ah calc") 
@@ -333,6 +333,5 @@ save(amCal, file="exp0039Anum.Rdata")
 flush.console()
 
 lab <- labs(title="Testing Time Strong Scaling", x="Number of Cores", y="Relative Performance")
-print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg)
+print(ggplot(ress1,aes(x=Cores_Used, y=Speed_Up, group=Line_Type, color=Line_Type))+geom_line()+lab +leg+geom_text(x = 15, y =40 , label =paste("Amdahl Number\nMNIST: ",signif(amCal[2,2], digits=2),"\nHiggs: ", signif(amCal[4,2], digits=2), "\np53: ", signif(amCal[5,2],digits=2))))
 ```
-

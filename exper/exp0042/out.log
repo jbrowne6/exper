@@ -1,0 +1,8 @@
+          used (Mb) gc trigger  (Mb) max used  (Mb)
+Ncells  462979 24.8     940480  50.3   578768  31.0
+Vcells 5883006 44.9   46112112 351.9 54585994 416.5
+[1] "starting MNIST RERF:  1 \n"
+[1] "starting MNIST RERF:  2 \n"
+[1] "starting MNIST RERF:  4 \n"
+[1] "starting MNIST RERF:  8 \n"
+[1] "starting MNIST RERF:  16 \n"

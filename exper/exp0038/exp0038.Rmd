@@ -22,10 +22,10 @@ runRerF <- TRUE
 runXG <- TRUE
 runRF <- TRUE
 runRanger <- TRUE
-nTimes <-2# 20#10
-num_trees <-  10
+nTimes <- 3#10
+num_trees <- 10# 100
 median_time <- NA
-num.threads <- 10
+num.threads <-10# 50
 data <- data.frame()
 ```
 
@@ -460,7 +460,5 @@ colnames(ress1) <- c("Dataset", Alg)
 ress1 <- melt(ress1, id.vars='Dataset')
 save(ress1, file="testTime.Rdata")
 
-
-print(g <- ggplot(ress1, aes(Dataset, value,color = variable)) + geom_bar(stat="identity")+ leg + labs(title="Test Times Single Core", x="Dataset", y="Test Time (s) ", subtitle=paste("")))
-#print(ggplot(ress2,aes(x=Cores_Used, y=Scale_Up, group=Line_Type, color=Line_Type))+geom_line()+labs(title="R-RerF Scale-Up", x="Number of Cores", y="Scale-Up", subtitle=paste("Initial number of samples: ", baseS))+expand_limits(y=c(0,1))+leg)
+print(g <- ggplot(ress1, aes(Dataset, value,color = variable, fill=variable)) + geom_bar(stat="identity", position=position_dodge())+ leg + labs(title="Test Times Single Core", x="Dataset", y="Test Time (s) ", subtitle=paste("")))
 ```
