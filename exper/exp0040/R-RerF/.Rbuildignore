@@ -1,0 +1,3 @@
+^travisTest$
+^\.travis\.yml$
+^.*\\.gz$

@@ -1,0 +1,516 @@
+---
+title: "Test Cancer Datasets"
+author: "James Browne"
+date: "October 20, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE, cache = FALSE)
+library(ggplot2)
+library(rerf)
+
+leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title =               element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x =                element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
+
+load(file="ForJushua.RData")
+```
+
+```{r data2_overview, cache = FALSE}
+if(FALSE){
+print("Starting with dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+
+print(paste("There are ",nrow(X), " samples"))
+print(paste("There are ", ncol(X), " features:"))
+apply(X,2,summary)
+
+forest <- RerF(X,Y,min.parent =1,bagging=0, max.depth=0, trees=1, store.ns=TRUE, mat.options = list(p = ncol(X), d = ncol(X), random.matrix = "rf", rho = 1/ncol(X)))
+num.leafs <- sum(forest$trees[[1]]$treeMap < 0)
+print(paste("When a decision tree is created (i.e. no randomness), there are ",num.leafs , " leaf nodes"))
+
+m <- (forest$trees[[1]]$ClassProb == 0 | forest$trees[[1]]$ClassProb == 1)
+print(paste("There is ", sum(m[1:num.leafs]==FALSE), " leaf node that is not pure"))
+i.leaf <- which(m[1:num.leafs] == FALSE)
+total.unclass <- 0
+for(i in i.leaf){
+z <- i * -1
+i.leaf.ind <- which(forest$trees[[1]]$treeMap==z) 
+print(paste("an impure leaf has size ", forest$trees[[1]]$NdSize[i.leaf.ind], ", ", forest$trees[[1]]$ClassProb[i], " of which are cancer free"))
+total.unclass <- total.unclass + forest$trees[[1]]$NdSize[i.leaf.ind] 
+}
+
+print(paste(total.unclass/nrow(X), "of the samples were in impure nodes"))
+depth <- unlist(PredictD(X,forest))
+df <- data.frame(x=depth)
+ggplot(df,aes(x)) + stat_ecdf(geom = "step", pad = FALSE)+labs(title="CDF of Nodes in Leaves", x="Depth of Tree",  y="Ratio of Nodes in Leaves") + leg
+}
+```
+
+```{r data2_RV, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+bagged <- .25
+trees <- 10
+forest <- RerF(X,Y,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(X), d = ncol(X), random.matrix = "rf", rho = 1/ncol(X)))
+print("**************************************************")
+print("************* Starting Tree Stats ****************")
+for(q in 1:trees){
+  print("")
+  print(paste("************************* Tree ", q , "*************************"))
+num.leafs <- sum(forest$trees[[q]]$treeMap < 0)
+print(paste("When a decision tree is created (i.e. no randomness), there are ",num.leafs , " leaf nodes"))
+
+m <- (forest$trees[[q]]$ClassProb == 0 | forest$trees[[q]]$ClassProb == 1)
+print(paste("There is ", sum(m[1:num.leafs]==FALSE), " leaf node that is not pure"))
+i.leaf <- which(m[1:num.leafs] == FALSE)
+total.unclass <- 0
+for(i in i.leaf){
+z <- i * -1
+i.leaf.ind <- which(forest$trees[[q]]$treeMap==z) 
+print(paste("an impure leaf has size ", forest$trees[[q]]$NdSize[i.leaf.ind], ", ", forest$trees[[q]]$ClassProb[i], " of which are cancer free"))
+total.unclass <- total.unclass + forest$trees[[q]]$NdSize[i.leaf.ind] 
+}
+print(paste(total.unclass/nrow(X), "of the samples were in impure nodes"))
+}
+
+depth <- unlist(PredictD(X,forest))
+df <- data.frame(x=depth)
+ggplot(df,aes(x)) + stat_ecdf(geom = "step", pad = FALSE)+labs(title="CDF of Nodes in Leaves", x="Depth of Tree",  y="Ratio of Nodes in Leaves")+ leg
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("20% Hold Out, 25% bagging, 100 trees, 20 iterations")
+predRate <- NA
+treeUsed <- NA
+data <- NA
+bagged <- .2
+trees <- 100
+for(i in 1:20){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+treeUsed[i] <- trees
+}
+trees <- 50
+for(i in 21:40){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+treeUsed[i] <- trees
+}
+trees <- 25
+for(i in 41:60){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+treeUsed[i] <- trees
+}
+
+df <- data.frame(predRate, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) +
+  geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+
+```
+
+
+```{r data2_RV_bigGrow, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+bagged <- .50
+trees <- 10
+forest <- RerF(X,Y,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, replacement=FALSE, stratify=TRUE, mat.options = list(p = ncol(X), d = ncol(X), random.matrix = "rf", rho = 1/ncol(X)))
+print("**************************************************")
+print("************* Starting Tree Stats ****************")
+for(q in 1:trees){
+  print("")
+  print(paste("************************* Tree ", q , "*************************"))
+num.leafs <- sum(forest$trees[[q]]$treeMap < 0)
+print(paste("When a decision tree is created (i.e. no randomness), there are ",num.leafs , " leaf nodes"))
+
+m <- (forest$trees[[q]]$ClassProb == 0 | forest$trees[[q]]$ClassProb == 1)
+print(paste("There is ", sum(m[1:num.leafs]==FALSE), " leaf node that is not pure"))
+i.leaf <- which(m[1:num.leafs] == FALSE)
+total.unclass <- 0
+for(i in i.leaf){
+z <- i * -1
+i.leaf.ind <- which(forest$trees[[q]]$treeMap==z) 
+print(paste("an impure leaf has size ", forest$trees[[q]]$NdSize[i.leaf.ind], ", ", forest$trees[[q]]$ClassProb[i], " of which are cancer free"))
+total.unclass <- total.unclass + forest$trees[[q]]$NdSize[i.leaf.ind] 
+}
+print(paste(total.unclass/nrow(X), "of the samples were in impure nodes"))
+}
+
+depth <- unlist(PredictD(X,forest))
+df <- data.frame(x=depth)
+ggplot(df,aes(x)) + stat_ecdf(geom = "step", pad = FALSE)+labs(title="CDF of Nodes in Leaves", x="Depth of Tree",  y="Ratio of Nodes in Leaves")+ leg
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("20% Hold Out, 50% bagging, 100 trees, 20 iterations")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+trees <- 100
+for(i in 1:20){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+}
+trees <- 50
+for(i in 21:40){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+}
+trees <- 25
+for(i in 41:60){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+}
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = specificity)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = sensitivity)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
+
+```{r data2_RV_bigGrow_sen, cache = FALSE}
+if(TRUE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+bagged <- .10
+
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("20% Hold Out, 50% bagging, 100 trees, 20 iterations")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+trees <- 100
+for(i in 1:10){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+#predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+predictionTotals <- Predict(Xte,forest, aggregate.output = FALSE)#new
+pred <- (rowMeans(predictionTotals)==2)+1#new
+predRate[i] <-  sum(pred != Yte)/nrow(Xte)
+withC <- which(Yte == 1)
+specificity[i] <- 1-sum(pred[withC] != Yte[withC])/length(withC) 
+sensitivity[i] <- 1-sum(pred[-withC]!= Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+}
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = 1-specificity)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = 1-sensitivity)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
+
+
+```{r data2_RV_sensitivity, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+targetSpe <- .99
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("Removing Positive Samples until .99 Sensitivity Reached")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+hold.out <- .1
+hscale <- .05
+bagged <- .1
+trees <- 45
+for(nr in 1:10){
+for(i in 1:3){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+X3 <- sample(1:length(X2), hold.out * length(X2), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,][X3,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2][X3])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+cat("\nTraining on ", length(X3), " positive samples and ", length(X1), " negative samples")
+}
+if((1-median(specificity)) < targetSpe){
+hold.out <- hold.out - hold.out * hscale
+} else {
+hold.out <- hold.out + hold.out * hscale
+}
+cat("\nRound ", i, ", hold.out = ", hold.out,": \nSpecificity = ", 1-median(specificity), "\nSensitivity = ", 1-median(sensitivity))
+}
+
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-specificity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-sensitivity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
+
+```{r data2_RV_sensitivity2, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+targetSpe <- .99
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("Removing Positive Samples until .99 Sensitivity Reached")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+hold.out <- .09
+hscale <- .05
+bagged <- .1
+trees <- 100
+#for(nr in 1:10){
+for(i in 1:20){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+X3 <- sample(1:length(X2), hold.out * length(X2), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,][X3,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2][X3])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = ncol(Xtr), random.matrix = "rf", rho = 1/ncol(Xtr)), seed = i)
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+cat("\nTraining on ", length(X3), " positive samples and ", length(X1), " negative samples")
+}
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-specificity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-sensitivity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
+
+```{r data2_RV_sensitivity3, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+targetSpe <- .99
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("Removing Positive Samples until .99 Sensitivity Reached")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+hold.out <- 1
+hscale <- .05
+bagged <- .1
+trees <- 100
+#for(nr in 1:10){
+for(i in 1:10){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+X3 <- sample(1:length(X2), hold.out * length(X2), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,][X3,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2][X3])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = 2*ncol(Xtr), random.matrix = "binary", rho = 1/ncol(Xtr)), seed = sample(1:100000,1,FALSE))
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+cat("\nTraining on ", length(X3), " positive samples and ", length(X1), " negative samples")
+}
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-specificity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-sensitivity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
+
+```{r data2_RV_sensitivity4, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+targetSpe <- .99
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("Removing Positive Samples until .99 Sensitivity Reached")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+hold.out <- .5
+hscale <- .5
+bagged <- .1
+trees <- 100
+for(nr in 1:10){
+for(i in 1:10){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+X3 <- sample(1:length(X2), hold.out * length(X2), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,][X3,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2][X3])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = 2*ncol(Xtr), random.matrix = "binary", rho = 1/ncol(Xtr)), seed = sample(1:100000,1,FALSE))
+predRate[i] <- sum(as.numeric(Predict(Xte,forest)) != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+cat("\nTraining on ", length(X3), " positive samples and ", length(X1), " negative samples")
+}
+  hscale <- hscale * .5
+if((1-median(specificity)) < targetSpe){
+hold.out <- hold.out - hold.out * hscale
+} else {
+hold.out <- hold.out + hold.out * hscale
+}
+cat("\nRound ", i, ", hold.out = ", hold.out,": \nSpecificity = ", 1-median(specificity), "\nSensitivity = ", 1-median(sensitivity))
+}
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-specificity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-sensitivity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
+
+```{r data2_RV_sensitivity5, cache = FALSE}
+if(FALSE){
+print("Starting Random Vine on dataset 2")
+X<- as.matrix(ForJoshua2[,c(1:(ncol(ForJoshua2)-4), (ncol(ForJoshua2)-2):ncol(ForJoshua2))])
+Y<-as.numeric(ForJoshua2[,(ncol(ForJoshua2)-3)])+1
+#calculate amount to bag in order to fully devolop trees
+targetSpe <- .99
+print("")
+print("**************************************************")
+print("***** Starting Multiple Runs for Accuracy ********")
+print("Removing Positive Samples until .99 Sensitivity Reached")
+predRate <- NA
+specificity <- NA
+sensitivity <- NA
+treeUsed <- NA
+data <- NA
+hold.out <- .15
+hscale <- .5
+bagged <- .1
+trees <- 1200
+
+for(i in 1:20){
+  X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)
+            X2 <- sample(1:length(Y[Y==2]), .8 *length(Y[Y==2]), replace=FALSE)
+X3 <- sample(1:length(X2), hold.out * length(X2), replace=FALSE)
+            Xtr <- rbind(X[Y==1,][X1,],X[Y==2,][X2,][X3,])
+            Ytr <- c(Y[Y==1][X1], Y[Y==2][X2][X3])
+Xte <- rbind(X[Y==1,][-X1,],X[Y==2,][-X2,])
+            Yte <- c(Y[Y==1][-X1], Y[Y==2][-X2])
+  forest <- RerF(Xtr,Ytr,min.parent =1,bagging=bagged, max.depth=0, trees=trees, store.ns=TRUE, mat.options = list(p = ncol(Xtr), d = 2*ncol(Xtr), random.matrix = "binary", rho = 1/ncol(Xtr)), seed = sample(1:100000,1,FALSE))
+predictionTotals <- Predict(Xte,forest, aggregate.output = FALSE)
+pred <- (rowMeans(predictionTotals)==2)+1
+predRate[i] <- sum(pred != Yte)/nrow(Xte) 
+withC <- which(Yte == 1)
+specificity[i] <- sum(as.numeric(Predict(Xte[withC,],forest)) != Yte[withC])/length(withC) 
+sensitivity[i] <- sum(as.numeric(Predict(Xte[-withC,],forest)) != Yte[-withC])/length(Yte[-withC])
+treeUsed[i] <- trees
+cat("\nTraining on ", length(X3), " positive samples and ", length(X1), " negative samples")
+cat("\nRound ", i, ", hold.out = ", hold.out,": \nSpecificity = ", 1-median(specificity), "\nSensitivity = ", 1-median(sensitivity))
+}
+
+
+df <- data.frame(predRate, specificity, sensitivity, treeUsed)
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = predRate)) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-specificity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Specificity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+print(g<- ggplot(df, aes(x = factor(treeUsed), y = (1-sensitivity))) + geom_point() +labs(title="The Effect of Tree Numbers on Error Rates -- Dataset 2, Sensitivity", x="num.trees", y="Error Rate ", subtitle=paste("")))
+}
+```
