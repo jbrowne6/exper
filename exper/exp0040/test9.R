@@ -19,8 +19,9 @@ print("Removing Positive Samples until .99 Sensitivity Reached")
 predRate <- NA
 specificity <- NA
 sensitivity <- NA
-trees <- 100
+trees <- 500
 cutOffAcc <- NA
+forest <- NA
 for(i in 1:10){
     #Make 80 % training and 20% testing sets
     X1 <- sample(1:length(Y[Y==1]), .8 *length(Y[Y==1]), replace=FALSE)

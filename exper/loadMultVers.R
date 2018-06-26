@@ -5,7 +5,7 @@ library(rerf, lib.loc="~/R/mult/v1")
 detach(package:rerf)
 
 library(devtools)
-install(args="--library=~/R/mult/v2")
+install(args="--library=~/R/mult/v4")
 
 library(rerf, lib.loc="~/R/mult/v2")
 X <- iris[,1:4]

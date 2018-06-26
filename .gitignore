@@ -1,3 +1,8 @@
 data/p53.csv
 data/higgs/*
 *.model
+*.csv
+*.Rdata
+*.RData
+*.zip
+*.html

@@ -1,0 +1,22 @@
+BuildTree               RerF Tree Generator
+ComputeSimilarity       Compute Similarities
+FeatureImportance       Compute Feature Importance of a RerF model
+OOBPredict              Compute out-of-bag predictions
+PackForest              Compute class predictions for each observation
+                        in X
+Predict                 Compute class predictions for each observation
+                        in X
+RandMat                 Create a Random Matrix
+RandMatCat              Create a Random Matrix for use when categorical
+                        features are present
+RerF                    RerF forest Generator
+RunFeatureImportance    Compute Feature Importance of a single RerF
+                        tree
+RunOOB                  Predict class labels on out-of-bag observations
+                        using a single tree.
+RunPredict              Predict class labels on a test set using a
+                        single tree.
+RunPredictLeaf          Calculate similarity using a single tree.
+StrCorr                 Compute tree strength and correlation
+mnist                   A subset of the MNIST dataset for handwritten
+                        digit classification
