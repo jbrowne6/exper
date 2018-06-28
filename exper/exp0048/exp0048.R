@@ -27,14 +27,14 @@ data_summary <- function(data, varname, groupnames){
 leg <- theme(legend.text = element_text(size = 12), legend.title=element_blank(), plot.title = element_text(size = 16,  face="bold"), plot.subtitle = element_text(size = 12),axis.title.x = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=12), axis.text.y = element_text(size=12))
 
 runRerF <- TRUE
-nTimes <- 1
-num_trees <- 50
-num.threads <- 50
+nTimes <- 10
+num_trees <- 500
+num.threads <- 500
 
 depthFileName <- "depth.Rdata"
 
-minDepth <- 41
-maxDepth <- 41
+minDepth <- 200
+maxDepth <- 200
 
 ################################################################
 ################### cifar ######################################

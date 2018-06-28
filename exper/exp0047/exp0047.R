@@ -32,7 +32,7 @@ num_trees <- 500
 num.threads <- 50
 
 data.test <- data.frame(dataset=character(), depth=double(), processTime=double(), accuracy=double(),stringsAsFactors=FALSE)
-minDepth <- 41
+minDepth <- 1
 maxDepth <- 80
 
 ################################################################
@@ -67,7 +67,7 @@ print(paste("starting cifar rerf: ", testDepth))
 		data.test[nrow(data.test)+1,] <- c("cifar10",testDepth,pTime,error.rate) 
 	}
 }
-save(data.test, file="accuracy2ndHalf.Rdata")
+save(data.test, file="results.Rdata")
 
 ######################################################
 ##########   MNIST ###################################
@@ -128,7 +128,7 @@ print(paste("starting MNIST RERF: ", testDepth))
 
 	}
 }
-save(data.test, file="accuracy2ndHalf.Rdata")
+save(data.test, file="results.Rdata")
 
 ################################################################
 ##############  HIGGS  ##########################################
@@ -169,7 +169,7 @@ print(paste("starting Higgs RERF: ", testDepth))
 		data.test[nrow(data.test)+1,] <- c("higgs",testDepth,pTime,error.rate) 
 	}
 }
-save(data.test, file="accuracy2ndHalf.Rdata")
+save(data.test, file="results.Rdata")
 
 ##############################################################
 #################   Print ###################################
@@ -179,7 +179,7 @@ data.test$depth <- as.numeric(data.test$depth)
 data.test$processTime <- as.numeric(data.test$processTime)
 data.test$accuracy <- as.numeric(data.test$accuracy)
 
-save(data.test, file="accuracy2ndHalf.Rdata")
+save(data.test, file="results.Rdata")
 
 data.testAccuracy <- data_summary(data.test, varname="accuracy", groupnames=c("dataset", "depth"))
 
